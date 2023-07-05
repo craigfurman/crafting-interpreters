@@ -26,12 +26,16 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Jar> {
     manifest {
-        attributes["Main-Class"] = "dev.craigfurman.MainKt"
+        attributes["Main-Class"] = "dev.craigfurman.klox.MainKt"
     }
 }
 
+tasks.withType<JavaExec> {
+    standardInput = System.`in`
+}
+
 application {
-    mainClass.set("dev.craigfurman.MainKt")
+    mainClass.set("dev.craigfurman.klox.MainKt")
 }
 
 java {
