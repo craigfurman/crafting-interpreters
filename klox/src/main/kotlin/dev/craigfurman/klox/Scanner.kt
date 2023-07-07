@@ -20,39 +20,39 @@ class Scanner(private val src: String, private val reportError: ReportError) {
 
     private fun scanToken() {
         val c = advance()
-        val tkn = when (c) {
-            '(' -> newToken(LEFT_PAREN)
-            ')' -> newToken(RIGHT_PAREN)
-            '{' -> newToken(LEFT_BRACE)
-            '}' -> newToken(RIGHT_BRACE)
-            ',' -> newToken(COMMA)
-            '.' -> newToken(DOT)
-            '-' -> newToken(MINUS)
-            '+' -> newToken(PLUS)
-            ';' -> newToken(SEMICOLON)
-            '*' -> newToken(STAR)
+        when (c) {
+            '(' -> addToken(LEFT_PAREN)
+            ')' -> addToken(RIGHT_PAREN)
+            '{' -> addToken(LEFT_BRACE)
+            '}' -> addToken(RIGHT_BRACE)
+            ',' -> addToken(COMMA)
+            '.' -> addToken(DOT)
+            '-' -> addToken(MINUS)
+            '+' -> addToken(PLUS)
+            ';' -> addToken(SEMICOLON)
+            '*' -> addToken(STAR)
 
-            '!' -> newToken(if (match('=')) BANG_EQUAL else BANG)
-            '=' -> newToken(if (match('=')) EQUAL_EQUAL else EQUAL)
-            '<' -> newToken(if (match('=')) LESS_EQUAL else LESS)
-            '>' -> newToken(if (match('=')) GREATER_EQUAL else GREATER)
+            '!' -> addToken(if (match('=')) BANG_EQUAL else BANG)
+            '=' -> addToken(if (match('=')) EQUAL_EQUAL else EQUAL)
+            '<' -> addToken(if (match('=')) LESS_EQUAL else LESS)
+            '>' -> addToken(if (match('=')) GREATER_EQUAL else GREATER)
 
             '/' -> {
                 if (match('/')) {
                     while (peek() != '\n' && !isAtEnd()) {
                         advance()
                     }
-                    null
                 } else {
-                    newToken(SLASH)
+                    addToken(SLASH)
                 }
             }
 
-            ' ', '\r', '\t' -> null
+            ' ', '\r', '\t' -> {
+                // Ignore whitespace
+            }
 
             '\n' -> {
                 line++
-                null
             }
 
             '"' -> string()
@@ -61,11 +61,7 @@ class Scanner(private val src: String, private val reportError: ReportError) {
 
             else -> {
                 this.reportError(line, "Unexpected character: $c")
-                null
             }
-        }
-        if (tkn != null) {
-            tokens.add(tkn)
         }
     }
 
@@ -97,13 +93,13 @@ class Scanner(private val src: String, private val reportError: ReportError) {
         return src[current + 1]
     }
 
-    private fun newToken(type: TokenType) = newToken(type, null)
-    private fun newToken(type: TokenType, literal: Any?): Token {
+    private fun addToken(type: TokenType) = addToken(type, null)
+    private fun addToken(type: TokenType, literal: Any?) {
         val text = src.substring(start until current)
-        return Token(type, text, literal, line)
+        tokens.add(Token(type, text, literal, line))
     }
 
-    private fun string(): Token? {
+    private fun string() {
         while (peek() != '"' && !isAtEnd()) {
             if (peek() == '\n') {
                 line++
@@ -112,16 +108,16 @@ class Scanner(private val src: String, private val reportError: ReportError) {
         }
         if (isAtEnd()) {
             reportError(line, "Unterminated string.")
-            return null
+            return
         }
         advance() // consume the closing quote
 
         // trim the surrounding quotes
         val str = src.substring(start + 1 until current - 1)
-        return newToken(STRING, str)
+        addToken(STRING, str)
     }
 
-    private fun number(): Token {
+    private fun number() {
         while (isDigit(peek())) {
             advance()
         }
@@ -136,10 +132,10 @@ class Scanner(private val src: String, private val reportError: ReportError) {
         }
 
         val numStr = src.substring(start until current)
-        return newToken(NUMBER, numStr.toDouble())
+        addToken(NUMBER, numStr.toDouble())
     }
 
-    private fun identifier(): Token {
+    private fun identifier() {
         while (isAlpha(peek())) {
             advance()
         }
@@ -147,8 +143,8 @@ class Scanner(private val src: String, private val reportError: ReportError) {
         val text = src.substring(start until current)
         val keyword = keywords[text]
         return when (keyword) {
-            null -> newToken(IDENTIFIER, text)
-            else -> newToken(keyword)
+            null -> addToken(IDENTIFIER, text)
+            else -> addToken(keyword)
         }
     }
 }
