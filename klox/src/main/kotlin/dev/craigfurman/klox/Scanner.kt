@@ -2,7 +2,10 @@ package dev.craigfurman.klox
 
 import dev.craigfurman.klox.TokenType.*
 
-class Scanner(private val src: String, private val reportError: ReportError) {
+class Scanner(
+    private val src: String,
+    private val errorReporter: ErrorReporter
+) {
     private val tokens: MutableList<Token> = ArrayList()
     private var start = 0
     private var current = 0
@@ -60,7 +63,7 @@ class Scanner(private val src: String, private val reportError: ReportError) {
             in 'a'..'z', in 'A'..'Z', '_' -> identifier()
 
             else -> {
-                this.reportError(line, "Unexpected character: $c")
+                this.errorReporter.error(line, "Unexpected character: $c")
             }
         }
     }
@@ -107,7 +110,7 @@ class Scanner(private val src: String, private val reportError: ReportError) {
             advance()
         }
         if (isAtEnd()) {
-            reportError(line, "Unterminated string.")
+            this.errorReporter.error(line, "Unterminated string.")
             return
         }
         advance() // consume the closing quote
