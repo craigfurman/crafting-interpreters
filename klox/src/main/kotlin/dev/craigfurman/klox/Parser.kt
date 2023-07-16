@@ -14,7 +14,6 @@ import dev.craigfurman.klox.TokenType.*
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" ;
 
-// TODO: this appears to be right-associative instead of left, and to have backwards precedence
 class Parser(
     private val tokens: List<Token>,
     private val errorReporter: ErrorReporter
@@ -75,7 +74,7 @@ class Parser(
         var expr = leftRule()
         while (match(*tokenTypes)) {
             val operator = previous()
-            val right = term()
+            val right = leftRule()
             expr = Expression.Binary(expr, operator, right)
         }
         return expr

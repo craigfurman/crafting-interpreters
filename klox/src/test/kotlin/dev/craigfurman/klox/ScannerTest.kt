@@ -21,15 +21,7 @@ class ScannerTest {
     @MethodSource("expressions")
     fun scanTokens(src: String) {
         val expectedTokens = expectedResults[src]!!
-        val sc = Scanner(src, object : ErrorReporter {
-            override fun error(line: Int, message: String) {
-                throw Exception(message)
-            }
-
-            override fun error(token: Token, message: String) {
-                throw Exception(message)
-            }
-        })
+        val sc = Scanner(src, panicOnError)
         val tokens = sc.scanTokens()
         assertEquals(expectedTokens, tokens)
     }
