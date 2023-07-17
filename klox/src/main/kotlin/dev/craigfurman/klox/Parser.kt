@@ -15,7 +15,9 @@ import dev.craigfurman.klox.TokenType.*
 
 // Expression grammar:
 //
-// expression     → equality ;
+// expression     → assignment ;
+// assignment     → IDENTIFIER "=" assignment
+//                | equality ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term           → factor ( ( "-" | "+" ) factor )* ;
@@ -79,7 +81,25 @@ class Parser(
     }
 
     // exposed for tests only
-    internal fun expression(): Expression = equality()
+    internal fun expression(): Expression = assignment()
+
+    private fun assignment(): Expression {
+        val expr = equality()
+
+        if (match(EQUAL)) {
+            val equals = previous()
+            val value = assignment()
+            if (expr is Expression.Variable) {
+                val name = expr.name
+                return Expression.Assign(name, value)
+            }
+
+            // TODO differs in book
+            throw newError(equals, "Invalid assignment target.")
+        }
+
+        return expr
+    }
 
     private fun equality() = parseLeftAssociativeBinaryOperators(
         ::comparison, BANG_EQUAL, EQUAL_EQUAL

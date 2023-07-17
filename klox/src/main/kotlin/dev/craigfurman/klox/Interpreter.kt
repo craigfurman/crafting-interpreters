@@ -16,8 +16,10 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
         }
     }
 
-    override fun visitAssignExpr(expr: Expression.Assign): Any {
-        TODO("Not yet implemented")
+    override fun visitAssignExpr(expr: Expression.Assign): Any? {
+        val value = evaluate(expr.value)
+        environment.assign(expr.name, value)
+        return value
     }
 
     override fun visitBinaryExpr(expr: Expression.Binary): Any {
