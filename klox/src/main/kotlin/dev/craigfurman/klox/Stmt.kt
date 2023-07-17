@@ -13,7 +13,7 @@ sealed interface Stmt {
     data class If(val condition: Expression, val thenBranch: Stmt, val elseBranch: Stmt) : Stmt
     data class Print(val expr: Expression) : Stmt
     data class Return(val keyword: Token, val value: Expression) : Stmt
-    data class Var(val name: Token, val initializer: Expression) : Stmt
+    data class Var(val name: Token, val initializer: Expression?) : Stmt
     data class While(val condition: Expression, val body: Stmt) : Stmt
 
     interface Visitor<R> {

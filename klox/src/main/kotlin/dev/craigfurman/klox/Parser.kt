@@ -4,11 +4,12 @@ import dev.craigfurman.klox.TokenType.*
 
 // Program grammar:
 //
-// program        → statement* EOF ;
-//
+// program        → declaration* EOF ;
+// declaration    → varDecl
+//                | statement ;
+// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 // statement      → exprStmt
 //                | printStmt ;
-//
 // exprStmt       → expression ";" ;
 // printStmt      → "print" expression ";" ;
 
@@ -22,7 +23,7 @@ import dev.craigfurman.klox.TokenType.*
 // unary          → ( "!" | "-" ) unary
 //                | primary ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
-//                | "(" expression ")" ;
+//                | "(" expression ")" | IDENTIFIER;
 
 class Parser(
     private val tokens: List<Token>,
@@ -33,9 +34,29 @@ class Parser(
     fun parse(): List<Stmt> {
         val statements = ArrayList<Stmt>()
         while (!isAtEnd()) {
-            statements.add(statement())
+            declaration()?.let { statements.add(it) }
         }
         return statements
+    }
+
+    private fun declaration(): Stmt? {
+        try {
+            if (match(VAR)) return varDeclaration()
+            return statement()
+        } catch (err: ParseError) {
+            synchronize()
+            return null
+        }
+    }
+
+    private fun varDeclaration(): Stmt {
+        val name = consume(IDENTIFIER, "Expect variable name.")
+        var initializer: Expression? = null
+        if (match(EQUAL)) {
+            initializer = expression()
+        }
+        consume(SEMICOLON, "Expect ';' after variable declaration.")
+        return Stmt.Var(name, initializer)
     }
 
     private fun statement(): Stmt {
@@ -88,6 +109,7 @@ class Parser(
         if (match(TRUE)) return Expression.Literal(true)
         if (match(NIL)) return Expression.Literal(null)
         if (match(NUMBER, STRING)) return Expression.Literal(previous().literal)
+        if (match(IDENTIFIER)) return Expression.Variable(previous())
 
         if (match(LEFT_PAREN)) {
             val expr = expression()

@@ -4,6 +4,8 @@ import dev.craigfurman.klox.TokenType.*
 
 class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.Visitor<Any?>,
     Stmt.Visitor<Unit> {
+    private val environment = Environment()
+
     fun interpret(statements: List<Stmt>) {
         try {
             for (statement in statements) {
@@ -111,7 +113,7 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
     }
 
     override fun visitVariableExpr(expr: Expression.Variable): Any {
-        TODO("Not yet implemented")
+        return environment.get(expr.name)
     }
 
     override fun visitBlockStmt(stmt: Stmt.Block) {
@@ -144,7 +146,11 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
     }
 
     override fun visitVarStmt(stmt: Stmt.Var) {
-        TODO("Not yet implemented")
+        val value = when (stmt.initializer) {
+            null -> null
+            else -> evaluate(stmt.initializer)
+        }
+        environment.define(stmt.name.lexeme, value)
     }
 
     override fun visitWhileStmt(stmt: Stmt.While) {
