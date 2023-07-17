@@ -2,6 +2,16 @@ package dev.craigfurman.klox
 
 import dev.craigfurman.klox.TokenType.*
 
+// Program grammar:
+//
+// program        → statement* EOF ;
+//
+// statement      → exprStmt
+//                | printStmt ;
+//
+// exprStmt       → expression ";" ;
+// printStmt      → "print" expression ";" ;
+
 // Expression grammar:
 //
 // expression     → equality ;
@@ -20,14 +30,35 @@ class Parser(
 ) {
     private var current = 0
 
-    fun parse() = try {
-        expression()
-    } catch (err: ParseError) {
-        // errors are reported at generation time
-        null
+    fun parse(): List<Stmt> {
+        val statements = ArrayList<Stmt>()
+        while (!isAtEnd()) {
+            statements.add(statement())
+        }
+        return statements
     }
 
-    private fun expression(): Expression = equality()
+    private fun statement(): Stmt {
+        if (match(PRINT)) {
+            return printStatement()
+        }
+        return exprStatement()
+    }
+
+    private fun exprStatement(): Stmt {
+        val value = expression()
+        consume(SEMICOLON, "Expect ';' after value.")
+        return Stmt.Expr(value)
+    }
+
+    private fun printStatement(): Stmt {
+        val value = expression()
+        consume(SEMICOLON, "Expect ';' after expression.")
+        return Stmt.Print(value)
+    }
+
+    // exposed for tests only
+    internal fun expression(): Expression = equality()
 
     private fun equality() = parseLeftAssociativeBinaryOperators(
         ::comparison, BANG_EQUAL, EQUAL_EQUAL

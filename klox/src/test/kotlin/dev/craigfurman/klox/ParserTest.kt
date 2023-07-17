@@ -25,7 +25,7 @@ class ParserTest {
 
     private fun srcToExpr(src: String): String {
         val tokens = Scanner(src, panicOnError).scanTokens()
-        val expr = Parser(tokens, panicOnError).parse()
-        return AstPrinter().print(expr!!)
+        val expr = Parser(tokens, panicOnError).expression()
+        return AstPrinter().print(expr)
     }
 }

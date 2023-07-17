@@ -2,11 +2,13 @@ package dev.craigfurman.klox
 
 import dev.craigfurman.klox.TokenType.*
 
-class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.Visitor<Any?> {
-    fun interpret(expr: Expression) {
+class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.Visitor<Any?>,
+    Stmt.Visitor<Unit> {
+    fun interpret(statements: List<Stmt>) {
         try {
-            val value = evaluate(expr)
-            println(stringify(value))
+            for (statement in statements) {
+                execute(statement)
+            }
         } catch (err: RuntimeError) {
             reportError(err)
         }
@@ -112,6 +114,15 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
         TODO("Not yet implemented")
     }
 
+    override fun visitExprStmt(stmt: Stmt.Expr) {
+        evaluate(stmt.expr)
+    }
+
+    override fun visitPrintStmt(stmt: Stmt.Print) {
+        val value = evaluate(stmt.expr)
+        println(stringify(value))
+    }
+
     private fun isTruthy(value: Any?): Boolean {
         return when (value) {
             is Boolean -> value
@@ -152,6 +163,7 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
     }
 
     private fun evaluate(expr: Expression) = visit(expr)
+    private fun execute(statement: Stmt) = visit(statement)
 }
 
 class RuntimeError(val token: Token, val msg: String) : Exception(msg)

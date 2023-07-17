@@ -51,13 +51,10 @@ class Lox : ErrorReporter, RuntimeErrorReporter {
         val scanner = Scanner(src, this)
         val tokens = scanner.scanTokens()
         val parser = Parser(tokens, this)
-        val expr = parser.parse()
+        val statements = parser.parse()
         if (hadError) return
-
-        // Code paths that have not set hadError _should_ not have thrown an
-        // exception, therefore the only case in which expr is null _should_
-        // not have occurred.
-        interpreter.interpret(expr!!)
+        
+        interpreter.interpret(statements)
     }
 
     private fun report(line: Int, where: String, message: String) {
