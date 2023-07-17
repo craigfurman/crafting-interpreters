@@ -7,8 +7,10 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
-class Lox : ErrorReporter {
+class Lox : ErrorReporter, RuntimeErrorReporter {
     private var hadError = false
+    private var hadRuntimeError = false
+    private val interpreter = Interpreter(::runtimeError)
 
     fun runPrompt() {
         val stdinReader = BufferedReader(InputStreamReader(System.`in`))
@@ -23,9 +25,9 @@ class Lox : ErrorReporter {
     fun runFile(path: String) {
         val bytes = Files.readAllBytes(Paths.get(path))
         runSource(bytes.toString(Charset.defaultCharset()))
-        if (this.hadError) {
-            exitProcess(65)
-        }
+        if (this.hadError) exitProcess(65)
+        if (this.hadRuntimeError) exitProcess(70)
+
     }
 
     override fun error(line: Int, message: String) {
@@ -40,6 +42,11 @@ class Lox : ErrorReporter {
         }
     }
 
+    override fun runtimeError(error: RuntimeError) {
+        println(error.message + "\n[line ${error.token.line}]")
+        this.hadRuntimeError = true
+    }
+
     private fun runSource(src: String) {
         val scanner = Scanner(src, this)
         val tokens = scanner.scanTokens()
@@ -50,7 +57,7 @@ class Lox : ErrorReporter {
         // Code paths that have not set hadError _should_ not have thrown an
         // exception, therefore the only case in which expr is null _should_
         // not have occurred.
-        println(AstPrinter().print(expr!!))
+        interpreter.interpret(expr!!)
     }
 
     private fun report(line: Int, where: String, message: String) {
@@ -62,4 +69,8 @@ class Lox : ErrorReporter {
 interface ErrorReporter {
     fun error(line: Int, message: String)
     fun error(token: Token, message: String)
+}
+
+fun interface RuntimeErrorReporter {
+    fun runtimeError(error: RuntimeError)
 }
