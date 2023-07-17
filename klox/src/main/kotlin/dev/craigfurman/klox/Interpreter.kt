@@ -114,13 +114,41 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
         TODO("Not yet implemented")
     }
 
+    override fun visitBlockStmt(stmt: Stmt.Block) {
+        TODO("Not yet implemented")
+    }
+
+    override fun visitClassStmt(stmt: Stmt.ClassStmt) {
+        TODO("Not yet implemented")
+    }
+
     override fun visitExprStmt(stmt: Stmt.Expr) {
         evaluate(stmt.expr)
+    }
+
+    override fun visitFunctionStmt(stmt: Stmt.FunctionStmt?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun visitIfStmt(stmt: Stmt.If) {
+        TODO("Not yet implemented")
     }
 
     override fun visitPrintStmt(stmt: Stmt.Print) {
         val value = evaluate(stmt.expr)
         println(stringify(value))
+    }
+
+    override fun visitReturnStmt(stmt: Stmt.Return) {
+        TODO("Not yet implemented")
+    }
+
+    override fun visitVarStmt(stmt: Stmt.Var) {
+        TODO("Not yet implemented")
+    }
+
+    override fun visitWhileStmt(stmt: Stmt.While) {
+        TODO("Not yet implemented")
     }
 
     private fun isTruthy(value: Any?): Boolean {
