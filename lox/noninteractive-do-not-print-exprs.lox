@@ -1,0 +1,2 @@
+2 + 2; // does not print anything when run outside of the repl
+print 2 + 2;

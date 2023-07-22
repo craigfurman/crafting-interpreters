@@ -9,10 +9,14 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
-class Lox : ErrorReporter, RuntimeErrorReporter {
+class Lox(replSession: Boolean = false) : ErrorReporter, RuntimeErrorReporter {
     private var hadError = false
     private var hadRuntimeError = false
-    private val interpreter = Interpreter(::runtimeError)
+    private val interpreter: Interpreter
+
+    init {
+        this.interpreter = Interpreter(replSession, ::runtimeError)
+    }
 
     fun runPrompt() {
         val terminal = TerminalBuilder.builder().system(true).build()
@@ -23,7 +27,7 @@ class Lox : ErrorReporter, RuntimeErrorReporter {
             .build()
 
         do {
-            var line = lineReader.readLine("> ")
+            val line = lineReader.readLine("> ")
             runSource(line)
             this.hadError = false
         } while (line != null)

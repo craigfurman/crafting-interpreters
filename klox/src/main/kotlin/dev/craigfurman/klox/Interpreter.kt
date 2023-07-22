@@ -2,13 +2,21 @@ package dev.craigfurman.klox
 
 import dev.craigfurman.klox.TokenType.*
 
-class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.Visitor<Any?>,
+class Interpreter(
+    private val replSession: Boolean,
+    private val reportError: (RuntimeError) -> Unit
+) :
+    Expression.Visitor<Any?>,
     Stmt.Visitor<Unit> {
     private var environment = Environment()
 
     fun interpret(statements: List<Stmt>) {
         try {
             for (statement in statements) {
+                if (replSession && statement is Stmt.Expr) {
+                    val evaluated = evaluate(statement.expr)
+                    println(stringify(evaluated))
+                }
                 execute(statement)
             }
         } catch (err: RuntimeError) {
