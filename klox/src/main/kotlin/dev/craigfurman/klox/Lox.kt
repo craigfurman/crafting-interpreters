@@ -1,7 +1,9 @@
 package dev.craigfurman.klox
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import org.jline.reader.LineReaderBuilder
+import org.jline.reader.impl.DefaultParser
+import org.jline.reader.impl.history.DefaultHistory
+import org.jline.terminal.TerminalBuilder
 import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -13,13 +15,20 @@ class Lox : ErrorReporter, RuntimeErrorReporter {
     private val interpreter = Interpreter(::runtimeError)
 
     fun runPrompt() {
-        val stdinReader = BufferedReader(InputStreamReader(System.`in`))
-        while (true) {
-            print("> ")
-            val line = stdinReader.readLine() ?: break
+        val terminal = TerminalBuilder.builder().system(true).build()
+        val lineReader = LineReaderBuilder.builder()
+            .terminal(terminal)
+            .history(DefaultHistory())
+            .parser(DefaultParser())
+            .build()
+
+        do {
+            var line = lineReader.readLine("> ")
             runSource(line)
             this.hadError = false
-        }
+        } while (line != null)
+
+        terminal.close()
     }
 
     fun runFile(path: String) {
@@ -53,7 +62,7 @@ class Lox : ErrorReporter, RuntimeErrorReporter {
         val parser = Parser(tokens, this)
         val statements = parser.parse()
         if (hadError) return
-        
+
         interpreter.interpret(statements)
     }
 

@@ -14,6 +14,8 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jline:jline-terminal:3.23.0")
+    implementation("org.jline:jline-reader:3.23.0")
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
 }
