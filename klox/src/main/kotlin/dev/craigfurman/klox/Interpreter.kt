@@ -4,7 +4,7 @@ import dev.craigfurman.klox.TokenType.*
 
 class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.Visitor<Any?>,
     Stmt.Visitor<Unit> {
-    private val environment = Environment()
+    private var environment = Environment()
 
     fun interpret(statements: List<Stmt>) {
         try {
@@ -114,12 +114,12 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
         }
     }
 
-    override fun visitVariableExpr(expr: Expression.Variable): Any {
+    override fun visitVariableExpr(expr: Expression.Variable): Any? {
         return environment.get(expr.name)
     }
 
     override fun visitBlockStmt(stmt: Stmt.Block) {
-        TODO("Not yet implemented")
+        executeBlock(stmt.statements, Environment(environment))
     }
 
     override fun visitClassStmt(stmt: Stmt.ClassStmt) {
@@ -157,6 +157,18 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
 
     override fun visitWhileStmt(stmt: Stmt.While) {
         TODO("Not yet implemented")
+    }
+
+    private fun executeBlock(statements: List<Stmt>, environment: Environment) {
+        val previous = this.environment
+        try {
+            this.environment = environment
+            for (statement in statements) {
+                execute(statement)
+            }
+        } finally {
+            this.environment = previous
+        }
     }
 
     private fun isTruthy(value: Any?): Boolean {
@@ -202,4 +214,4 @@ class Interpreter(private val reportError: (RuntimeError) -> Unit) : Expression.
     private fun execute(statement: Stmt) = visit(statement)
 }
 
-class RuntimeError(val token: Token, val msg: String) : Exception(msg)
+class RuntimeError(val token: Token, msg: String) : Exception(msg)

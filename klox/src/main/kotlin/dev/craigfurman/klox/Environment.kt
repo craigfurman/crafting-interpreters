@@ -1,12 +1,13 @@
 package dev.craigfurman.klox
 
-class Environment {
+class Environment(private val enclosing: Environment? = null) {
     private val values = HashMap<String, Any?>()
 
     // TODO does this handle explicit/implicit nil binding?
-    fun get(name: Token): Any = when (val value = values[name.lexeme]) {
-        null -> throw RuntimeError(name, "Undefined variable '${name.lexeme}'.")
-        else -> value
+    fun get(name: Token): Any? {
+        if (values.containsKey(name.lexeme)) return values[name.lexeme]
+        if (enclosing != null) return enclosing.get(name)
+        throw RuntimeError(name, "Undefined variable '${name.lexeme}'.")
     }
 
     fun define(name: String, value: Any?) {
@@ -16,6 +17,10 @@ class Environment {
     fun assign(name: Token, value: Any?) {
         if (values.containsKey(name.lexeme)) {
             values[name.lexeme] = value
+            return
+        }
+        if (enclosing != null) {
+            enclosing.assign(name, value)
             return
         }
         throw RuntimeError(name, "Undefined variable '${name.lexeme}'.")

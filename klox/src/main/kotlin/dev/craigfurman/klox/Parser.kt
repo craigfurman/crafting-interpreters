@@ -9,7 +9,9 @@ import dev.craigfurman.klox.TokenType.*
 //                | statement ;
 // varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 // statement      → exprStmt
-//                | printStmt ;
+//                | printStmt
+//                | block ;
+// block          → "{" declaration* "}" ;
 // exprStmt       → expression ";" ;
 // printStmt      → "print" expression ";" ;
 
@@ -62,9 +64,8 @@ class Parser(
     }
 
     private fun statement(): Stmt {
-        if (match(PRINT)) {
-            return printStatement()
-        }
+        if (match(PRINT)) return printStatement()
+        if (match(LEFT_BRACE)) return Stmt.Block(block())
         return exprStatement()
     }
 
@@ -78,6 +79,15 @@ class Parser(
         val value = expression()
         consume(SEMICOLON, "Expect ';' after expression.")
         return Stmt.Print(value)
+    }
+
+    private fun block(): List<Stmt> {
+        val statements = ArrayList<Stmt>()
+        while (!currentTokenHasType(RIGHT_BRACE) && !isAtEnd()) {
+            declaration()?.let { statements.add(it) }
+        }
+        consume(RIGHT_BRACE, "Expect '}' after block.")
+        return statements
     }
 
     // exposed for tests only
