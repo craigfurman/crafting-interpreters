@@ -11,6 +11,7 @@ sealed interface Stmt {
     data class Expr(val expr: Expression) : Stmt
     data class FunctionStmt(val name: Token, val params: List<Token>, val body: List<Stmt>) : Stmt
     data class If(val condition: Expression, val thenBranch: Stmt, val elseBranch: Stmt?) : Stmt
+    data class Jump(val keyword: Token) : Stmt
     data class Print(val expr: Expression) : Stmt
     data class Return(val keyword: Token, val value: Expression) : Stmt
     data class Var(val name: Token, val initializer: Expression?) : Stmt
@@ -22,6 +23,7 @@ sealed interface Stmt {
         fun visitExprStmt(stmt: Expr): R
         fun visitFunctionStmt(stmt: FunctionStmt?): R
         fun visitIfStmt(stmt: If): R
+        fun visitJumpStmt(stmt: Jump): R
         fun visitPrintStmt(stmt: Print): R
         fun visitReturnStmt(stmt: Return): R
         fun visitVarStmt(stmt: Var): R
@@ -33,6 +35,7 @@ sealed interface Stmt {
             is Expr -> visitExprStmt(stmt)
             is FunctionStmt -> visitFunctionStmt(stmt)
             is If -> visitIfStmt(stmt)
+            is Jump -> visitJumpStmt(stmt)
             is Print -> visitPrintStmt(stmt)
             is Return -> visitReturnStmt(stmt)
             is Var -> visitVarStmt(stmt)

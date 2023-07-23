@@ -13,6 +13,7 @@ import dev.craigfurman.klox.TokenType.*
 //                | ifStmt
 //                | printStmt
 //                | whileStmt
+//                | breakStmt // Not always allowed, but I don't know how to express this without bloating the grammar
 //                | block ;
 // exprStmt       → expression ";" ;
 // forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
@@ -54,10 +55,10 @@ class Parser(
         return statements
     }
 
-    private fun declaration(): Stmt? {
+    private fun declaration(allowJumps: Boolean = false): Stmt? {
         try {
             if (match(VAR)) return varDeclaration()
-            return statement()
+            return statement(allowJumps)
         } catch (err: ParseError) {
             synchronize()
             return null
@@ -74,12 +75,13 @@ class Parser(
         return Stmt.Var(name, initializer)
     }
 
-    private fun statement(): Stmt {
+    private fun statement(allowJumps: Boolean = false): Stmt {
         if (match(FOR)) return forStatement()
-        if (match(IF)) return ifStatement()
+        if (match(IF)) return ifStatement(allowJumps)
         if (match(PRINT)) return printStatement()
         if (match(WHILE)) return whileStatement()
-        if (match(LEFT_BRACE)) return Stmt.Block(block())
+        if (match(LEFT_BRACE)) return Stmt.Block(block(allowJumps))
+        if (allowJumps && match(BREAK)) return breakStatement()
         return exprStatement()
     }
 
@@ -100,7 +102,7 @@ class Parser(
         consume(RIGHT_PAREN, "Expect ')' after for clauses.")
 
         // Desugar to build up the for statement with each clause being optional
-        var body = statement()
+        var body = statement(true)
 
         // Increment executes after each loop iteration
         if (increment != null) body = Stmt.Block(listOf(body, Stmt.Expr(increment)))
@@ -112,12 +114,12 @@ class Parser(
         return body
     }
 
-    private fun ifStatement(): Stmt {
+    private fun ifStatement(allowJumps: Boolean = false): Stmt {
         consume(LEFT_PAREN, "Expect '(' after 'if'.")
         val condition = expression()
         consume(RIGHT_PAREN, "Expect ')' after if condition")
-        val thenBranch = statement()
-        val elseBranch = if (match(ELSE)) statement() else null
+        val thenBranch = statement(allowJumps)
+        val elseBranch = if (match(ELSE)) statement(allowJumps) else null
         return Stmt.If(condition, thenBranch, elseBranch)
     }
 
@@ -131,14 +133,23 @@ class Parser(
         consume(LEFT_PAREN, "Expect '(' after 'while'.")
         val condition = expression()
         consume(RIGHT_PAREN, "Expect ')' after condition.")
-        val body = statement()
+        val body = statement(true)
         return Stmt.While(condition, body)
     }
 
-    private fun block(): List<Stmt> {
+    // Chapter 9 challenge 3
+    // I tried adding continue too, but this was much harder to support in for loops due to the need
+    // to still execute the increment statement. I might come back and add this later.
+    private fun breakStatement(): Stmt {
+        val jump = Stmt.Jump(previous())
+        consume(SEMICOLON, "Expect ';' after 'break'.")
+        return jump
+    }
+
+    private fun block(allowJumps: Boolean = false): List<Stmt> {
         val statements = ArrayList<Stmt>()
         while (!currentTokenHasType(RIGHT_BRACE) && !isAtEnd()) {
-            declaration()?.let { statements.add(it) }
+            declaration(allowJumps)?.let { statements.add(it) }
         }
         consume(RIGHT_BRACE, "Expect '}' after block.")
         return statements

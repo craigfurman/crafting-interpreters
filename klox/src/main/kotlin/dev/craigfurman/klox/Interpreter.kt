@@ -156,6 +156,10 @@ class Interpreter(
         }
     }
 
+    override fun visitJumpStmt(stmt: Stmt.Jump) {
+        throw Jump(stmt.keyword)
+    }
+
     override fun visitPrintStmt(stmt: Stmt.Print) {
         val value = evaluate(stmt.expr)
         println(stringify(value))
@@ -175,7 +179,13 @@ class Interpreter(
 
     override fun visitWhileStmt(stmt: Stmt.While) {
         while (isTruthy(evaluate(stmt.condition))) {
-            execute(stmt.body)
+            try {
+                execute(stmt.body)
+            } catch (jump: Jump) {
+                if (jump.keyword.type == BREAK) break
+                // TODO: restrict creation of Jumps to avoid this case
+                else throw RuntimeError(jump.keyword, "Parser error: only 'break' may jump.")
+            }
         }
     }
 
@@ -232,6 +242,8 @@ class Interpreter(
 
     private fun evaluate(expr: Expression) = visit(expr)
     private fun execute(statement: Stmt) = visit(statement)
+
+    class Jump(val keyword: Token) : Exception()
 }
 
 class RuntimeError(val token: Token, msg: String) : Exception(msg)

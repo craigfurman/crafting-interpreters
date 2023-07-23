@@ -1,0 +1,19 @@
+for (var i = 0; i < 10; i = i + 1) {
+  if (i == 3) {
+    print "break!";
+    break;
+  }
+  print i;
+}
+
+var i = 0;
+while (i < 10) {
+  if (i == 3) {
+    print "break!";
+    break;
+  }
+  print i;
+  i = i + 1;
+}
+
+print "done";
