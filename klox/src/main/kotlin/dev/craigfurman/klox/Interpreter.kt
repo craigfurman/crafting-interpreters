@@ -8,7 +8,19 @@ class Interpreter(
 ) :
     Expression.Visitor<Any?>,
     Stmt.Visitor<Unit> {
-    private var environment = Environment()
+    internal val globals = Environment()
+    private var environment = globals
+
+    init {
+        globals.define("clock", object : LoxCallable {
+            override fun arity() = 0
+
+            override fun call(interpreter: Interpreter, arguments: List<Any?>) =
+                System.currentTimeMillis() / 1000.0
+
+            override fun toString() = "<native fn>"
+        })
+    }
 
     fun interpret(statements: List<Stmt>) {
         try {
@@ -85,8 +97,24 @@ class Interpreter(
         }
     }
 
-    override fun visitCallExpr(expr: Expression.Call): Any {
-        TODO("Not yet implemented")
+    override fun visitCallExpr(expr: Expression.Call): Any? {
+        val callee = evaluate(expr.callee)
+        val arguments = ArrayList<Any?>()
+        for (argument in expr.arguments) {
+            arguments.add(evaluate(argument))
+        }
+
+        if (callee !is LoxCallable) {
+            throw RuntimeError(expr.paren, "Can only call functions and classes.")
+        }
+        if (arguments.size != callee.arity()) {
+            throw RuntimeError(
+                expr.paren,
+                "Expected ${callee.arity()} arguments but got ${arguments.size}."
+            )
+        }
+
+        return callee.call(this, arguments)
     }
 
     override fun visitGetExpr(expr: Expression.Get): Any {
@@ -144,8 +172,9 @@ class Interpreter(
         evaluate(stmt.expr)
     }
 
-    override fun visitFunctionStmt(stmt: Stmt.FunctionStmt?) {
-        TODO("Not yet implemented")
+    override fun visitFunctionStmt(stmt: Stmt.FunctionStmt) {
+        val function = LoxFunction(stmt)
+        environment.define(stmt.name.lexeme, function)
     }
 
     override fun visitIfStmt(stmt: Stmt.If) {
@@ -189,7 +218,7 @@ class Interpreter(
         }
     }
 
-    private fun executeBlock(statements: List<Stmt>, environment: Environment) {
+    internal fun executeBlock(statements: List<Stmt>, environment: Environment) {
         val previous = this.environment
         try {
             this.environment = environment

@@ -5,8 +5,12 @@ import dev.craigfurman.klox.TokenType.*
 // Program grammar:
 //
 // program        → declaration* EOF ;
-// declaration    → varDecl
+// declaration    → funDecl
+//                → varDecl
 //                | statement ;
+// funDecl        → "fun" function ;
+// function       → IDENTIFIER "(" parameters? ")" block ;
+// parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 // varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 // statement      → exprStmt
 //                | forStmt
@@ -36,8 +40,9 @@ import dev.craigfurman.klox.TokenType.*
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term           → factor ( ( "-" | "+" ) factor )* ;
 // factor         → unary ( ( "/" | "*" ) unary )* ;
-// unary          → ( "!" | "-" ) unary
-//                | primary ;
+// unary          → ( "!" | "-" ) unary | call ;
+// call           → primary ( "(" arguments? ")" )* ;
+// arguments      → expression ( "," expression )* ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" | IDENTIFIER;
 
@@ -57,12 +62,31 @@ class Parser(
 
     private fun declaration(allowJumps: Boolean = false): Stmt? {
         try {
+            if (match(FUN)) return function(FunctionKind.FUNCTION)
             if (match(VAR)) return varDeclaration()
             return statement(allowJumps)
         } catch (err: ParseError) {
             synchronize()
             return null
         }
+    }
+
+    private fun function(kind: FunctionKind): Stmt {
+        val name = consume(IDENTIFIER, "Expect ${kind.name.lowercase()} name.")
+        consume(LEFT_PAREN, "Expect '(' after ${kind.name.lowercase()} name.")
+        val parameters = ArrayList<Token>()
+        if (!currentTokenHasType(RIGHT_PAREN)) {
+            do {
+                if (parameters.size >= 255) {
+                    newError(peek(), "Can't have more than 255 parameters.")
+                }
+                parameters.add(consume(IDENTIFIER, "Expect parameter name."))
+            } while (match(COMMA))
+        }
+        consume(RIGHT_PAREN, "Expect ')' after parameters.")
+        consume(LEFT_BRACE, "Expect '{' before ${kind.name.lowercase()} body.")
+        val body = block()
+        return Stmt.FunctionStmt(name, parameters, body)
     }
 
     private fun varDeclaration(): Stmt {
@@ -198,7 +222,33 @@ class Parser(
             val right = unary()
             return Expression.Unary(operator, right)
         }
-        return primary()
+        return call()
+    }
+
+    private fun call(): Expression {
+        var expr = primary()
+        while (true) {
+            if (match(LEFT_PAREN)) {
+                expr = finishCall(expr)
+            } else {
+                break
+            }
+        }
+        return expr
+    }
+
+    private fun finishCall(callee: Expression): Expression {
+        val arguments = ArrayList<Expression>()
+        if (!currentTokenHasType(RIGHT_PAREN)) {
+            do {
+                if (arguments.size >= 255) {
+                    newError(peek(), "Can't have more than 255 arguments.")
+                }
+                arguments.add(expression())
+            } while (match(COMMA))
+        }
+        val paren = consume(RIGHT_PAREN, "Expect ')' after arguments.")
+        return Expression.Call(callee, paren, arguments)
     }
 
     private fun primary(): Expression {
@@ -283,6 +333,8 @@ class Parser(
             }
         }
     }
+
+    enum class FunctionKind { FUNCTION }
 
     class ParseError : Exception()
 }

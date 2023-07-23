@@ -21,7 +21,7 @@ sealed interface Stmt {
         fun visitBlockStmt(stmt: Block): R
         fun visitClassStmt(stmt: ClassStmt): R
         fun visitExprStmt(stmt: Expr): R
-        fun visitFunctionStmt(stmt: FunctionStmt?): R
+        fun visitFunctionStmt(stmt: FunctionStmt): R
         fun visitIfStmt(stmt: If): R
         fun visitJumpStmt(stmt: Jump): R
         fun visitPrintStmt(stmt: Print): R
