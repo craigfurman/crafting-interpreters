@@ -169,8 +169,7 @@ class Parser(
                 return Expression.Assign(name, value)
             }
 
-            // TODO differs in book
-            throw newError(equals, "Invalid assignment target.")
+            newError(equals, "Invalid assignment target.")
         }
 
         return expr
