@@ -97,8 +97,14 @@ class Interpreter(
 
     override fun visitLiteralExpr(expr: Expression.Literal) = expr.value
 
-    override fun visitLogicalExpr(expr: Expression.Logical): Any {
-        TODO("Not yet implemented")
+    override fun visitLogicalExpr(expr: Expression.Logical): Any? {
+        val left = evaluate(expr.left)
+        if (expr.operator.type == OR) {
+            if (isTruthy(left)) return left
+        } else {
+            if (!isTruthy(left)) return left
+        }
+        return evaluate(expr.right)
     }
 
     override fun visitSetExpr(expr: Expression.SetExpr): Any {
@@ -143,7 +149,11 @@ class Interpreter(
     }
 
     override fun visitIfStmt(stmt: Stmt.If) {
-        TODO("Not yet implemented")
+        if (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.thenBranch)
+        } else if (stmt.elseBranch != null) {
+            execute(stmt.elseBranch)
+        }
     }
 
     override fun visitPrintStmt(stmt: Stmt.Print) {
@@ -164,7 +174,9 @@ class Interpreter(
     }
 
     override fun visitWhileStmt(stmt: Stmt.While) {
-        TODO("Not yet implemented")
+        while (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.body)
+        }
     }
 
     private fun executeBlock(statements: List<Stmt>, environment: Environment) {

@@ -9,17 +9,28 @@ import dev.craigfurman.klox.TokenType.*
 //                | statement ;
 // varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 // statement      → exprStmt
+//                | forStmt
+//                | ifStmt
 //                | printStmt
+//                | whileStmt
 //                | block ;
-// block          → "{" declaration* "}" ;
 // exprStmt       → expression ";" ;
+// forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+//                 expression? ";"
+//                 expression? ")" statement ;
+// ifStmt         → "if" "(" expression ")" statement
+//                ( "else" statement )? ;
 // printStmt      → "print" expression ";" ;
+// whileStmt      → "while" "(" expression ")" statement ;
+// block          → "{" declaration* "}" ;
 
 // Expression grammar:
 //
 // expression     → assignment ;
 // assignment     → IDENTIFIER "=" assignment
-//                | equality ;
+//                | logic_or ;
+// logic_or       → logic_and ( "or" logic_and )* ;
+// logic_and      → equality ( "and" equality )* ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term           → factor ( ( "-" | "+" ) factor )* ;
@@ -64,7 +75,10 @@ class Parser(
     }
 
     private fun statement(): Stmt {
+        if (match(FOR)) return forStatement()
+        if (match(IF)) return ifStatement()
         if (match(PRINT)) return printStatement()
+        if (match(WHILE)) return whileStatement()
         if (match(LEFT_BRACE)) return Stmt.Block(block())
         return exprStatement()
     }
@@ -75,10 +89,50 @@ class Parser(
         return Stmt.Expr(value)
     }
 
+    private fun forStatement(): Stmt {
+        consume(LEFT_PAREN, "Expect '(' after 'for'.")
+        val initializer =
+            if (match(SEMICOLON)) null else if (match(VAR)) varDeclaration() else exprStatement()
+        val condition =
+            if (currentTokenHasType(SEMICOLON)) Expression.Literal(true) else expression()
+        consume(SEMICOLON, "Expect ';' after loop condition.")
+        val increment = if (currentTokenHasType(RIGHT_PAREN)) null else expression()
+        consume(RIGHT_PAREN, "Expect ')' after for clauses.")
+
+        // Desugar to build up the for statement with each clause being optional
+        var body = statement()
+
+        // Increment executes after each loop iteration
+        if (increment != null) body = Stmt.Block(listOf(body, Stmt.Expr(increment)))
+
+        // condition defaults to true above
+        body = Stmt.While(condition, body)
+
+        if (initializer != null) body = Stmt.Block(listOf(initializer, body))
+        return body
+    }
+
+    private fun ifStatement(): Stmt {
+        consume(LEFT_PAREN, "Expect '(' after 'if'.")
+        val condition = expression()
+        consume(RIGHT_PAREN, "Expect ')' after if condition")
+        val thenBranch = statement()
+        val elseBranch = if (match(ELSE)) statement() else null
+        return Stmt.If(condition, thenBranch, elseBranch)
+    }
+
     private fun printStatement(): Stmt {
         val value = expression()
         consume(SEMICOLON, "Expect ';' after expression.")
         return Stmt.Print(value)
+    }
+
+    private fun whileStatement(): Stmt {
+        consume(LEFT_PAREN, "Expect '(' after 'while'.")
+        val condition = expression()
+        consume(RIGHT_PAREN, "Expect ')' after condition.")
+        val body = statement()
+        return Stmt.While(condition, body)
     }
 
     private fun block(): List<Stmt> {
@@ -94,7 +148,7 @@ class Parser(
     internal fun expression(): Expression = assignment()
 
     private fun assignment(): Expression {
-        val expr = equality()
+        val expr = or()
 
         if (match(EQUAL)) {
             val equals = previous()
@@ -111,19 +165,22 @@ class Parser(
         return expr
     }
 
+    private fun or() = parseLeftAssociativeBinaryOperators(::and, Expression::Logical, OR)
+    private fun and() = parseLeftAssociativeBinaryOperators(::equality, Expression::Logical, AND)
+
     private fun equality() = parseLeftAssociativeBinaryOperators(
-        ::comparison, BANG_EQUAL, EQUAL_EQUAL
+        ::comparison, Expression::Binary, BANG_EQUAL, EQUAL_EQUAL
     )
 
     private fun comparison() = parseLeftAssociativeBinaryOperators(
-        ::term, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL
+        ::term, Expression::Binary, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL
     )
 
     private fun term() =
-        parseLeftAssociativeBinaryOperators(::factor, MINUS, PLUS)
+        parseLeftAssociativeBinaryOperators(::factor, Expression::Binary, MINUS, PLUS)
 
     private fun factor() =
-        parseLeftAssociativeBinaryOperators(::unary, SLASH, STAR)
+        parseLeftAssociativeBinaryOperators(::unary, Expression::Binary, SLASH, STAR)
 
     private fun unary(): Expression {
         if (match(BANG, MINUS)) {
@@ -150,15 +207,18 @@ class Parser(
         throw newError(peek(), "Expect expression.")
     }
 
+    // Logical operators are binary operators, but we parse them as different, in order to more
+    // easily implement short-circuiting logic
     private fun parseLeftAssociativeBinaryOperators(
-        leftRule: () -> Expression,
-        vararg tokenTypes: TokenType
+        higherPrecedenceProduction: () -> Expression,
+        exprConstructor: (left: Expression, operator: Token, right: Expression) -> Expression,
+        vararg tokenTypes: TokenType,
     ): Expression {
-        var expr = leftRule()
+        var expr = higherPrecedenceProduction()
         while (match(*tokenTypes)) {
             val operator = previous()
-            val right = leftRule()
-            expr = Expression.Binary(expr, operator, right)
+            val right = higherPrecedenceProduction()
+            expr = exprConstructor(expr, operator, right)
         }
         return expr
     }

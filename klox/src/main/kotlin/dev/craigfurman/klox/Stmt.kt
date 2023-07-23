@@ -10,7 +10,7 @@ sealed interface Stmt {
 
     data class Expr(val expr: Expression) : Stmt
     data class FunctionStmt(val name: Token, val params: List<Token>, val body: List<Stmt>) : Stmt
-    data class If(val condition: Expression, val thenBranch: Stmt, val elseBranch: Stmt) : Stmt
+    data class If(val condition: Expression, val thenBranch: Stmt, val elseBranch: Stmt?) : Stmt
     data class Print(val expr: Expression) : Stmt
     data class Return(val keyword: Token, val value: Expression) : Stmt
     data class Var(val name: Token, val initializer: Expression?) : Stmt
