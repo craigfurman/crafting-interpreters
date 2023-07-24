@@ -8,7 +8,7 @@ class Interpreter(
 ) :
     Expression.Visitor<Any?>,
     Stmt.Visitor<Unit> {
-    internal val globals = Environment()
+    private val globals = Environment()
     private var environment = globals
 
     init {
@@ -173,7 +173,7 @@ class Interpreter(
     }
 
     override fun visitFunctionStmt(stmt: Stmt.FunctionStmt) {
-        val function = LoxFunction(stmt)
+        val function = LoxFunction(stmt, environment)
         environment.define(stmt.name.lexeme, function)
     }
 
