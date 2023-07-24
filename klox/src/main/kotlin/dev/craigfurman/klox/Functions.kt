@@ -13,7 +13,11 @@ class LoxFunction(private val declaration: Stmt.FunctionStmt) : LoxCallable {
         for ((i, param) in declaration.params.withIndex()) {
             environment.define(param.lexeme, arguments[i])
         }
-        interpreter.executeBlock(declaration.body, environment)
+        try {
+            interpreter.executeBlock(declaration.body, environment)
+        } catch (returnVal: Interpreter.Return) {
+            return returnVal.value
+        }
         return null
     }
 

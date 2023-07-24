@@ -16,6 +16,7 @@ import dev.craigfurman.klox.TokenType.*
 //                | forStmt
 //                | ifStmt
 //                | printStmt
+//                | returnStmt
 //                | whileStmt
 //                | breakStmt // Not always allowed, but I don't know how to express this without bloating the grammar
 //                | block ;
@@ -26,6 +27,7 @@ import dev.craigfurman.klox.TokenType.*
 // ifStmt         → "if" "(" expression ")" statement
 //                ( "else" statement )? ;
 // printStmt      → "print" expression ";" ;
+// returnStmt     → "return" expression? ";" ;
 // whileStmt      → "while" "(" expression ")" statement ;
 // block          → "{" declaration* "}" ;
 
@@ -103,6 +105,7 @@ class Parser(
         if (match(FOR)) return forStatement()
         if (match(IF)) return ifStatement(allowJumps)
         if (match(PRINT)) return printStatement()
+        if (match(RETURN)) return returnStatement()
         if (match(WHILE)) return whileStatement()
         if (match(LEFT_BRACE)) return Stmt.Block(block(allowJumps))
         if (allowJumps && match(BREAK)) return breakStatement()
@@ -151,6 +154,13 @@ class Parser(
         val value = expression()
         consume(SEMICOLON, "Expect ';' after expression.")
         return Stmt.Print(value)
+    }
+
+    private fun returnStatement(): Stmt {
+        val keyword = previous()
+        val value = if (currentTokenHasType(SEMICOLON)) null else expression()
+        consume(SEMICOLON, "Expect ';' after return value.")
+        return Stmt.Return(keyword, value)
     }
 
     private fun whileStatement(): Stmt {

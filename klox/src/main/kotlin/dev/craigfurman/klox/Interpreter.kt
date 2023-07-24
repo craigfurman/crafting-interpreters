@@ -195,7 +195,8 @@ class Interpreter(
     }
 
     override fun visitReturnStmt(stmt: Stmt.Return) {
-        TODO("Not yet implemented")
+        val value = if (stmt.value == null) null else evaluate(stmt.value)
+        throw Return(value)
     }
 
     override fun visitVarStmt(stmt: Stmt.Var) {
@@ -272,7 +273,9 @@ class Interpreter(
     private fun evaluate(expr: Expression) = visit(expr)
     private fun execute(statement: Stmt) = visit(statement)
 
-    class Jump(val keyword: Token) : Exception()
+    // We're just using these for control flow, no need for stack traces or suppression
+    class Return(val value: Any?) : Exception(null, null, false, false)
+    class Jump(val keyword: Token) : Exception(null, null, false, false)
 }
 
 class RuntimeError(val token: Token, msg: String) : Exception(msg)
