@@ -5,6 +5,7 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     Stmt.Visitor<Unit> {
     private val scopes = ArrayDeque<MutableMap<String, Boolean>>()
     private var currentFunction = FunctionType.NONE
+    private var currentLoop = LoopType.NONE
 
     fun resolve(statements: List<Stmt>) {
         for (stmt in statements) {
@@ -99,6 +100,9 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     override fun visitJumpStmt(stmt: Stmt.Jump) {
+        if (currentLoop != LoopType.BREAKABLE) {
+            errorReporter.error(stmt.keyword, "Can only break out of loops.")
+        }
     }
 
     override fun visitPrintStmt(stmt: Stmt.Print) {
@@ -119,8 +123,13 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     override fun visitWhileStmt(stmt: Stmt.While) {
+        val enclosingLoop = currentLoop
+        currentLoop = LoopType.BREAKABLE
+
         resolve(stmt.condition)
         resolve(stmt.body)
+
+        currentLoop = enclosingLoop
     }
 
     private fun resolve(expr: Expression) = visit(expr)
@@ -168,5 +177,9 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
 
     private enum class FunctionType {
         NONE, FUNCTION,
+    }
+
+    private enum class LoopType {
+        NONE, BREAKABLE,
     }
 }
