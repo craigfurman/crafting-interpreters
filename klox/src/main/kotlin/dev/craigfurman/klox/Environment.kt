@@ -10,6 +10,8 @@ class Environment(private val enclosing: Environment? = null) {
         throw RuntimeError(name, "Undefined variable '${name.lexeme}'.")
     }
 
+    fun getAt(distance: Int, name: String) = ancestor(distance).values[name]
+
     fun define(name: String, value: Any?) {
         values[name] = value
     }
@@ -24,5 +26,15 @@ class Environment(private val enclosing: Environment? = null) {
             return
         }
         throw RuntimeError(name, "Undefined variable '${name.lexeme}'.")
+    }
+
+    fun assignAt(distance: Int, name: Token, value: Any?) {
+        ancestor(distance).values[name.lexeme] = value
+    }
+
+    private fun ancestor(distance: Int): Environment {
+        var env = this
+        repeat(distance) { env = env.enclosing!! }
+        return env
     }
 }

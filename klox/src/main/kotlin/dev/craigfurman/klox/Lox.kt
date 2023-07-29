@@ -67,6 +67,10 @@ class Lox(replSession: Boolean = false) : ErrorReporter, RuntimeErrorReporter {
         val statements = parser.parse()
         if (hadError) return
 
+        val resolver = Resolver(interpreter, this)
+        resolver.resolve(statements)
+        if (hadError) return
+
         interpreter.interpret(statements)
     }
 

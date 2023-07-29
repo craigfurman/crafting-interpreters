@@ -1,6 +1,7 @@
 package dev.craigfurman.klox
 
 import dev.craigfurman.klox.TokenType.*
+import java.util.*
 
 class Interpreter(
     private val replSession: Boolean,
@@ -10,6 +11,7 @@ class Interpreter(
     Stmt.Visitor<Unit> {
     private val globals = Environment()
     private var environment = globals
+    private val locals = IdentityHashMap<Expression, Int>()
 
     init {
         globals.define("clock", object : LoxCallable {
@@ -36,9 +38,16 @@ class Interpreter(
         }
     }
 
+    internal fun resolve(expr: Expression, depth: Int) {
+        locals[expr] = depth
+    }
+
     override fun visitAssignExpr(expr: Expression.Assign): Any? {
         val value = evaluate(expr.value)
-        environment.assign(expr.name, value)
+        when (val distance = locals[expr]) {
+            null -> globals.assign(expr.name, value)
+            else -> environment.assignAt(distance, expr.name, value)
+        }
         return value
     }
 
@@ -157,7 +166,7 @@ class Interpreter(
     }
 
     override fun visitVariableExpr(expr: Expression.Variable): Any? {
-        return environment.get(expr.name)
+        return lookUpVariable(expr.name, expr)
     }
 
     override fun visitBlockStmt(stmt: Stmt.Block) {
@@ -228,6 +237,14 @@ class Interpreter(
             }
         } finally {
             this.environment = previous
+        }
+    }
+
+    private fun lookUpVariable(name: Token, expr: Expression): Any? {
+        val distance = locals[expr]
+        return when (distance) {
+            null -> globals.get(name)
+            else -> environment.getAt(distance, name.lexeme)
         }
     }
 
