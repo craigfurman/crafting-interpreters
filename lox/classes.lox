@@ -1,0 +1,22 @@
+class Bagel {
+  eat() {
+    print "yum!";
+  }
+}
+
+var bagel = Bagel();
+
+print Bagel;
+print bagel;
+
+bagel.added = "capers";
+print bagel.added;
+
+fun add(ingredient) {
+  print "added " + ingredient;
+}
+
+bagel.add = add;
+bagel.add("more capers");
+
+bagel.eat();

@@ -126,8 +126,10 @@ class Interpreter(
         return callee.call(this, arguments)
     }
 
-    override fun visitGetExpr(expr: Expression.Get): Any {
-        TODO("Not yet implemented")
+    override fun visitGetExpr(expr: Expression.Get): Any? {
+        val obj = evaluate(expr.obj)
+        if (obj is LoxInstance) return obj.get(expr.name)
+        throw RuntimeError(expr.name, "Only instances have properties.")
     }
 
     override fun visitGroupingExpr(expr: Expression.Grouping) = evaluate(expr.expr)
@@ -144,8 +146,12 @@ class Interpreter(
         return evaluate(expr.right)
     }
 
-    override fun visitSetExpr(expr: Expression.SetExpr): Any {
-        TODO("Not yet implemented")
+    override fun visitSetExpr(expr: Expression.SetExpr): Any? {
+        val obj = evaluate(expr.obj)
+        if (obj !is LoxInstance) throw RuntimeError(expr.name, "Only instances have fields.")
+        val value = evaluate(expr.value)
+        obj.set(expr.name, value)
+        return value
     }
 
     override fun visitSuperExpr(expr: Expression.Super): Any {
@@ -174,7 +180,16 @@ class Interpreter(
     }
 
     override fun visitClassStmt(stmt: Stmt.ClassStmt) {
-        TODO("Not yet implemented")
+        environment.define(stmt.name.lexeme, null)
+
+        val methods = HashMap<String, LoxFunction>()
+        for (method in stmt.methods) {
+            val fn = LoxFunction(method, environment)
+            methods[method.name.lexeme] = fn
+        }
+
+        val klass = LoxClass(stmt.name.lexeme, methods)
+        environment.assign(stmt.name, klass)
     }
 
     override fun visitExprStmt(stmt: Stmt.Expr) {

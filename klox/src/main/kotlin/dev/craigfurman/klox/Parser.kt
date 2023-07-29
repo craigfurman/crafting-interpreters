@@ -5,9 +5,11 @@ import dev.craigfurman.klox.TokenType.*
 // Program grammar:
 //
 // program        → declaration* EOF ;
-// declaration    → funDecl
-//                → varDecl
+// declaration    → classDecl
+//                | funDecl
+//                | varDecl
 //                | statement ;
+// classDecl      → "class" IDENTIFIER "{" function* "}" ;
 // funDecl        → "fun" function ;
 // function       → IDENTIFIER "(" parameters? ")" block ;
 // parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
@@ -34,7 +36,7 @@ import dev.craigfurman.klox.TokenType.*
 // Expression grammar:
 //
 // expression     → assignment ;
-// assignment     → IDENTIFIER "=" assignment
+// assignment     → ( call "." )? IDENTIFIER "=" assignment
 //                | logic_or ;
 // logic_or       → logic_and ( "or" logic_and )* ;
 // logic_and      → equality ( "and" equality )* ;
@@ -43,7 +45,7 @@ import dev.craigfurman.klox.TokenType.*
 // term           → factor ( ( "-" | "+" ) factor )* ;
 // factor         → unary ( ( "/" | "*" ) unary )* ;
 // unary          → ( "!" | "-" ) unary | call ;
-// call           → primary ( "(" arguments? ")" )* ;
+// call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 // arguments      → expression ( "," expression )* ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" | IDENTIFIER;
@@ -64,6 +66,7 @@ class Parser(
 
     private fun declaration(): Stmt? {
         try {
+            if (match(CLASS)) return classDeclaration()
             if (match(FUN)) return function(FunctionKind.FUNCTION)
             if (match(VAR)) return varDeclaration()
             return statement()
@@ -73,7 +76,20 @@ class Parser(
         }
     }
 
-    private fun function(kind: FunctionKind): Stmt {
+    private fun classDeclaration(): Stmt {
+        val name = consume(IDENTIFIER, "Expect class name.")
+        consume(LEFT_BRACE, "Expect '{' before class body.")
+
+        val methods = ArrayList<Stmt.FunctionStmt>()
+        while (!currentTokenHasType(RIGHT_BRACE) && !isAtEnd()) {
+            methods.add(function(FunctionKind.METHOD))
+        }
+
+        consume(RIGHT_BRACE, "Expect '}' after class body.")
+        return Stmt.ClassStmt(name, methods)
+    }
+
+    private fun function(kind: FunctionKind): Stmt.FunctionStmt {
         val name = consume(IDENTIFIER, "Expect ${kind.name.lowercase()} name.")
         consume(LEFT_PAREN, "Expect '(' after ${kind.name.lowercase()} name.")
         val parameters = ArrayList<Token>()
@@ -198,9 +214,12 @@ class Parser(
         if (match(EQUAL)) {
             val equals = previous()
             val value = assignment()
+            
             if (expr is Expression.Variable) {
                 val name = expr.name
                 return Expression.Assign(name, value)
+            } else if (expr is Expression.Get) {
+                return Expression.SetExpr(expr.obj, expr.name, value)
             }
 
             newError(equals, "Invalid assignment target.")
@@ -238,8 +257,11 @@ class Parser(
     private fun call(): Expression {
         var expr = primary()
         while (true) {
-            if (match(LEFT_PAREN)) {
-                expr = finishCall(expr)
+            expr = if (match(LEFT_PAREN)) {
+                finishCall(expr)
+            } else if (match(DOT)) {
+                val name = consume(IDENTIFIER, "Expect property name after '.'.")
+                Expression.Get(expr, name)
             } else {
                 break
             }
@@ -344,7 +366,7 @@ class Parser(
         }
     }
 
-    enum class FunctionKind { FUNCTION }
+    enum class FunctionKind { FUNCTION, METHOD }
 
     class ParseError : Exception()
 }

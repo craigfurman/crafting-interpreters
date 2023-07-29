@@ -30,13 +30,9 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
         }
     }
 
-    override fun visitGetExpr(expr: Expression.Get) {
-        TODO("Not yet implemented")
-    }
+    override fun visitGetExpr(expr: Expression.Get) = resolve(expr.obj)
 
-    override fun visitGroupingExpr(expr: Expression.Grouping) {
-        resolve(expr.expr)
-    }
+    override fun visitGroupingExpr(expr: Expression.Grouping) = resolve(expr.expr)
 
     override fun visitLiteralExpr(expr: Expression.Literal) {
     }
@@ -47,7 +43,8 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     override fun visitSetExpr(expr: Expression.SetExpr) {
-        TODO("Not yet implemented")
+        resolve(expr.value)
+        resolve(expr.obj)
     }
 
     override fun visitSuperExpr(expr: Expression.Super) {
@@ -80,7 +77,11 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     override fun visitClassStmt(stmt: Stmt.ClassStmt) {
-        TODO("Not yet implemented")
+        declare(stmt.name)
+        define(stmt.name)
+        for (method in stmt.methods) {
+            resolveFunction(method, FunctionType.METHOD)
+        }
     }
 
     override fun visitExprStmt(stmt: Stmt.Expr) {
@@ -176,7 +177,7 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     private enum class FunctionType {
-        NONE, FUNCTION,
+        NONE, FUNCTION, METHOD,
     }
 
     private enum class LoopType {
