@@ -13,7 +13,7 @@ sealed interface Stmt {
     data class Jump(val keyword: Token) : Stmt
     data class Print(val expr: Expression) : Stmt
     data class Return(val keyword: Token, val value: Expression?) : Stmt
-    data class Var(val name: Token, val initializer: Expression?) : Stmt
+    data class Var(val keyword: Token, val name: Token, val initializer: Expression?) : Stmt
     data class While(val condition: Expression, val body: Stmt) : Stmt
 
     interface Visitor<R> {

@@ -3,7 +3,8 @@ package dev.craigfurman.klox
 class Resolver(private val interpreter: Interpreter, private val errorReporter: ErrorReporter) :
     Expression.Visitor<Unit>,
     Stmt.Visitor<Unit> {
-    private val scopes = ArrayDeque<MutableMap<String, Boolean>>()
+    private val globals = HashMap<String, VarDecl>()
+    private val scopes = ArrayDeque<MutableMap<String, VarDecl>>()
     private var currentFunction = FunctionType.NONE
     private var currentLoop = LoopType.NONE
     private var currentClass = ClassType.NONE
@@ -16,7 +17,10 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
 
     override fun visitAssignExpr(expr: Expression.Assign) {
         resolve(expr.value)
-        resolveLocal(expr, expr.name)
+        val decl = resolveLocal(expr, expr.name)!!
+        if (!decl.mutable) {
+            errorReporter.error(expr.name, "Can't reassign immutable values.")
+        }
     }
 
     override fun visitBinaryExpr(expr: Expression.Binary) {
@@ -65,9 +69,9 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     override fun visitVariableExpr(expr: Expression.Variable) {
-        val inOwnInitializer = when (val initialized = scopes.lastOrNull()?.get(expr.name.lexeme)) {
+        val inOwnInitializer = when (val decl = scopes.lastOrNull()?.get(expr.name.lexeme)) {
             null -> false
-            else -> !initialized
+            else -> !decl.initialized
         }
         if (inOwnInitializer) {
             errorReporter.error(expr.name, "Can't read local variable in its own initializer.")
@@ -89,7 +93,7 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
         define(stmt.name)
 
         beginScope()
-        scopes.last()["this"] = true
+        scopes.last()["this"] = VarDecl(true)
 
         for (method in stmt.methods) {
             val declaration =
@@ -142,7 +146,7 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     override fun visitVarStmt(stmt: Stmt.Var) {
-        declare(stmt.name)
+        declare(stmt.name, stmt.keyword.type == TokenType.VAR)
         stmt.initializer?.let { resolve(it) }
         define(stmt.name)
     }
@@ -163,26 +167,27 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     private fun beginScope() = scopes.addLast(HashMap())
     private fun endScope() = scopes.removeLast()
 
-    private fun declare(name: Token) {
-        val scope = scopes.lastOrNull() ?: return
+    private fun declare(name: Token, mutable: Boolean = true) {
+        val scope = scopes.lastOrNull() ?: globals
         if (scope.containsKey(name.lexeme)) {
             errorReporter.error(name, "Already a variable with this name in this scope.")
         }
-        scope[name.lexeme] = false
+        scope[name.lexeme] = VarDecl(false, mutable)
     }
 
     private fun define(name: Token) {
         val scope = scopes.lastOrNull() ?: return
-        scope[name.lexeme] = true
+        scope[name.lexeme]!!.initialized = true
     }
 
-    private fun resolveLocal(expr: Expression, name: Token) {
+    private fun resolveLocal(expr: Expression, name: Token): VarDecl? {
         for (i in scopes.size - 1 downTo 0) {
             if (scopes[i].containsKey(name.lexeme)) {
                 interpreter.resolve(expr, scopes.size - 1 - i)
-                return
+                return scopes[i][name.lexeme]
             }
         }
+        return globals[name.lexeme]
     }
 
     private fun resolveFunction(function: Stmt.FunctionStmt, funcType: FunctionType) {
@@ -211,4 +216,6 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     private enum class ClassType {
         NONE, CLASS,
     }
+
+    private data class VarDecl(var initialized: Boolean, val mutable: Boolean = true)
 }

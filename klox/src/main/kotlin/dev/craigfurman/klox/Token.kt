@@ -23,12 +23,12 @@ enum class TokenType {
 
     // Keywords
     AND, BREAK, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+    PRINT, RETURN, SUPER, THIS, TRUE, VAL, VAR, WHILE,
 
     EOF
 }
 
 val keywords = arrayOf(
     AND, BREAK, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+    PRINT, RETURN, SUPER, THIS, TRUE, VAL, VAR, WHILE,
 ).associateBy { it.name.lowercase() }

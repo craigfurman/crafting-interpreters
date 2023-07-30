@@ -13,7 +13,7 @@ import dev.craigfurman.klox.TokenType.*
 // funDecl        → "fun" function ;
 // function       → IDENTIFIER "(" parameters? ")" block ;
 // parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
-// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+// varDecl        → ("var" | "val") IDENTIFIER ( "=" expression )? ";" ;
 // statement      → exprStmt
 //                | forStmt
 //                | ifStmt
@@ -68,7 +68,7 @@ class Parser(
         try {
             if (match(CLASS)) return classDeclaration()
             if (match(FUN)) return function(FunctionKind.FUNCTION)
-            if (match(VAR)) return varDeclaration()
+            if (match(VAL, VAR)) return varDeclaration()
             return statement()
         } catch (err: ParseError) {
             synchronize()
@@ -108,13 +108,14 @@ class Parser(
     }
 
     private fun varDeclaration(): Stmt {
+        val keyword = previous()
         val name = consume(IDENTIFIER, "Expect variable name.")
         var initializer: Expression? = null
         if (match(EQUAL)) {
             initializer = expression()
         }
         consume(SEMICOLON, "Expect ';' after variable declaration.")
-        return Stmt.Var(name, initializer)
+        return Stmt.Var(keyword, name, initializer)
     }
 
     private fun statement(): Stmt {

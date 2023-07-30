@@ -1,0 +1,17 @@
+var foo = "bar";
+print foo;
+foo = "baz";
+print foo;
+val immutable = "bar";
+immutable = "baz";
+print immutable;
+
+{
+  var foo = "bar";
+  print foo;
+  foo = "baz";
+  print foo;
+  val immutable = "bar";
+  immutable = "baz";
+  print immutable;
+}
