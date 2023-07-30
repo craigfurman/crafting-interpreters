@@ -5,8 +5,11 @@ interface LoxCallable {
     fun call(interpreter: Interpreter, arguments: List<Any?>): Any?
 }
 
-class LoxFunction(private val declaration: Stmt.FunctionStmt, private val closure: Environment) :
-    LoxCallable {
+class LoxFunction(
+    private val declaration: Stmt.FunctionStmt,
+    private val closure: Environment,
+    private val isInitializer: Boolean = false,
+) : LoxCallable {
     override fun arity() = declaration.params.size
 
     override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
@@ -17,15 +20,19 @@ class LoxFunction(private val declaration: Stmt.FunctionStmt, private val closur
         try {
             interpreter.executeBlock(declaration.body, environment)
         } catch (returnVal: Interpreter.Return) {
-            return returnVal.value
+            // Initializers are allowed to return, just not return values. The resolver has ensured
+            // that an early return from an initializer will always return nil. But, we special-case
+            // initializers to ensure that they always return this.
+            return if (isInitializer) closure.getAt(0, "this") else returnVal.value
         }
-        return null
+
+        return if (isInitializer) closure.getAt(0, "this") else null
     }
 
     fun bind(instance: LoxInstance): LoxFunction {
         val env = Environment(closure)
         env.define("this", instance)
-        return LoxFunction(declaration, env)
+        return LoxFunction(declaration, env, isInitializer)
     }
 
     override fun toString() = "<fn ${declaration.name.lexeme}>"

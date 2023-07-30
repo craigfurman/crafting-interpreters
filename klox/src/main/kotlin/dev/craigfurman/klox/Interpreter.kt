@@ -182,7 +182,7 @@ class Interpreter(
 
         val methods = HashMap<String, LoxFunction>()
         for (method in stmt.methods) {
-            val fn = LoxFunction(method, environment)
+            val fn = LoxFunction(method, environment, method.name.lexeme == "init")
             methods[method.name.lexeme] = fn
         }
 

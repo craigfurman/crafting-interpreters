@@ -92,7 +92,9 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
         scopes.last()["this"] = true
 
         for (method in stmt.methods) {
-            resolveFunction(method, FunctionType.METHOD)
+            val declaration =
+                if (method.name.lexeme == "init") FunctionType.INITIALIZER else FunctionType.METHOD
+            resolveFunction(method, declaration)
         }
 
         endScope()
@@ -130,7 +132,13 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
         if (currentFunction == FunctionType.NONE) {
             errorReporter.error(stmt.keyword, "Can't return from top-level code.")
         }
-        stmt.value?.let { resolve(it) }
+        stmt.value?.let {
+            // Allow early returns from initializers, just not return values
+            if (currentFunction == FunctionType.INITIALIZER) {
+                errorReporter.error(stmt.keyword, "Can't return a value from an initializer.")
+            }
+            resolve(it)
+        }
     }
 
     override fun visitVarStmt(stmt: Stmt.Var) {
@@ -193,7 +201,7 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     private enum class FunctionType {
-        NONE, FUNCTION, METHOD,
+        NONE, FUNCTION, INITIALIZER, METHOD,
     }
 
     private enum class LoopType {

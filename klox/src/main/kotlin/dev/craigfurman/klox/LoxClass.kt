@@ -1,10 +1,15 @@
 package dev.craigfurman.klox
 
 class LoxClass(val name: String, private val methods: Map<String, LoxFunction>) : LoxCallable {
-    override fun arity() = 0
+    override fun arity() = when (val init = findMethod("init")) {
+        null -> 0
+        else -> init.arity()
+    }
 
     override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
-        return LoxInstance(this)
+        val instance = LoxInstance(this)
+        findMethod("init")?.let { it.bind(instance).call(interpreter, arguments) }
+        return instance
     }
 
     fun findMethod(name: String) = methods[name]
