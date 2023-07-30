@@ -6,6 +6,7 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     private val scopes = ArrayDeque<MutableMap<String, Boolean>>()
     private var currentFunction = FunctionType.NONE
     private var currentLoop = LoopType.NONE
+    private var currentClass = ClassType.NONE
 
     fun resolve(statements: List<Stmt>) {
         for (stmt in statements) {
@@ -52,7 +53,11 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     override fun visitThisExpr(expr: Expression.This) {
-        TODO("Not yet implemented")
+        if (currentClass == ClassType.NONE) {
+            errorReporter.error(expr.keyword, "Can't use 'this' outside of a class.")
+            return
+        }
+        resolveLocal(expr, expr.keyword)
     }
 
     override fun visitUnaryExpr(expr: Expression.Unary) {
@@ -77,11 +82,22 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
     }
 
     override fun visitClassStmt(stmt: Stmt.ClassStmt) {
+        val enclosingClass = currentClass
+        currentClass = ClassType.CLASS
+
         declare(stmt.name)
         define(stmt.name)
+
+        beginScope()
+        scopes.last()["this"] = true
+
         for (method in stmt.methods) {
             resolveFunction(method, FunctionType.METHOD)
         }
+
+        endScope()
+
+        currentClass = enclosingClass
     }
 
     override fun visitExprStmt(stmt: Stmt.Expr) {
@@ -182,5 +198,9 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
 
     private enum class LoopType {
         NONE, BREAKABLE,
+    }
+
+    private enum class ClassType {
+        NONE, CLASS,
     }
 }

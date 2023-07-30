@@ -1,0 +1,11 @@
+class Thing {
+  getCallback() {
+    fun localFun() {
+      print this;
+    }
+    return localFun;
+  }
+}
+
+var callback = Thing().getCallback();
+callback();

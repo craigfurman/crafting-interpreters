@@ -214,7 +214,7 @@ class Parser(
         if (match(EQUAL)) {
             val equals = previous()
             val value = assignment()
-            
+
             if (expr is Expression.Variable) {
                 val name = expr.name
                 return Expression.Assign(name, value)
@@ -288,6 +288,7 @@ class Parser(
         if (match(TRUE)) return Expression.Literal(true)
         if (match(NIL)) return Expression.Literal(null)
         if (match(NUMBER, STRING)) return Expression.Literal(previous().literal)
+        if (match(THIS)) return Expression.This(previous())
         if (match(IDENTIFIER)) return Expression.Variable(previous())
 
         if (match(LEFT_PAREN)) {

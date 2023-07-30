@@ -158,9 +158,7 @@ class Interpreter(
         TODO("Not yet implemented")
     }
 
-    override fun visitThisExpr(expr: Expression.This): Any {
-        TODO("Not yet implemented")
-    }
+    override fun visitThisExpr(expr: Expression.This) = lookUpVariable(expr.keyword, expr)
 
     override fun visitUnaryExpr(expr: Expression.Unary): Any {
         val right = evaluate(expr.right)
@@ -255,13 +253,11 @@ class Interpreter(
         }
     }
 
-    private fun lookUpVariable(name: Token, expr: Expression): Any? {
-        val distance = locals[expr]
-        return when (distance) {
+    private fun lookUpVariable(name: Token, expr: Expression) =
+        when (val distance = locals[expr]) {
             null -> globals.get(name)
             else -> environment.getAt(distance, name.lexeme)
         }
-    }
 
     private fun isTruthy(value: Any?): Boolean {
         return when (value) {

@@ -2,6 +2,10 @@ class Bagel {
   eat() {
     print "yum!";
   }
+
+  whatIsAdded() {
+    return this.added;
+  }
 }
 
 var bagel = Bagel();
@@ -15,8 +19,9 @@ print bagel.added;
 fun add(ingredient) {
   print "added " + ingredient;
 }
-
 bagel.add = add;
 bagel.add("more capers");
 
 bagel.eat();
+
+print bagel.whatIsAdded();
