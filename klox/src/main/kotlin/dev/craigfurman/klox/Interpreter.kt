@@ -15,6 +15,7 @@ class Interpreter(
 
     init {
         globals.define("clock", Clock)
+        globals.define("List", LoxList)
     }
 
     fun interpret(statements: List<Stmt>) {
