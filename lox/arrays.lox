@@ -13,3 +13,21 @@ l = [3, 4, "bar"];
 for (var i = 0; i < l.length(); i = i + 1) {
   print l.get(i);
 }
+
+// Access sugar
+print l[0];
+print [1, 2][1];
+
+// 2D arrays
+l = [[1, 2], ["foo", "bar"]];
+print l[0][0] + l[0][1];
+print l[1][l[0][0]];
+
+// parser stress test
+fun add(a) {
+  fun ad(b) {
+    return a + b;
+  }
+  return ad;
+}
+print l[0][0] | add(2);

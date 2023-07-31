@@ -46,7 +46,8 @@ import dev.craigfurman.klox.TokenType.*
 // term           → factor ( ( "-" | "+" ) factor )* ;
 // factor         → unary ( ( "/" | "*" ) unary )* ;
 // unary          → ( "!" | "-" ) unary | call ;
-// call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
+// call           → access ( "(" arguments? ")" | "." IDENTIFIER )* ;
+// access         → access ( "[" expression "]" )* | primary
 // arguments      → expression ( "," expression )* ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" | IDENTIFIER | list ;
@@ -274,7 +275,7 @@ class Parser(
     }
 
     private fun call(): Expression {
-        var expr = primary()
+        var expr = access()
         while (true) {
             expr = if (match(LEFT_PAREN)) {
                 finishCall(expr)
@@ -284,6 +285,22 @@ class Parser(
             } else {
                 break
             }
+        }
+        return expr
+    }
+
+    // desugar list access
+    private fun access(): Expression {
+        var expr = primary()
+        while (match(LEFT_BRACKET)) {
+            val bracket = previous()
+            val idx = expression()
+            consume(RIGHT_BRACKET, "Expect ']' after list access.")
+            expr = Expression.Call(
+                Expression.Get(expr, Token(IDENTIFIER, "get", "get", bracket.line)),
+                bracket,
+                listOf(idx),
+            )
         }
         return expr
     }
