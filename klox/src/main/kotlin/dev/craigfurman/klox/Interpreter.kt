@@ -14,14 +14,7 @@ class Interpreter(
     private val locals = IdentityHashMap<Expression, Int>()
 
     init {
-        globals.define("clock", object : LoxCallable {
-            override fun arity() = 0
-
-            override fun call(interpreter: Interpreter, arguments: List<Any?>) =
-                System.currentTimeMillis() / 1000.0
-
-            override fun toString() = "<native fn>"
-        })
+        globals.define("clock", Clock)
     }
 
     fun interpret(statements: List<Stmt>) {
