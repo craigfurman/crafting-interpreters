@@ -7,3 +7,9 @@ l.append("foo");
 for (var i = 0; i < l.length(); i = i + 1) {
   print l.get(i);
 }
+
+// Literal syntax
+l = [3, 4, "bar"];
+for (var i = 0; i < l.length(); i = i + 1) {
+  print l.get(i);
+}

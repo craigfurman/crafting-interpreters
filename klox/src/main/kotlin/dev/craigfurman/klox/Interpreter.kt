@@ -128,6 +128,11 @@ class Interpreter(
 
     override fun visitGroupingExpr(expr: Expression.Grouping) = evaluate(expr.expr)
 
+    override fun visitListExpr(expr: Expression.ListExpr): Any? {
+        val elements = expr.elements.map { evaluate(it) }
+        return LoxList.Instance(elements.toMutableList())
+    }
+
     override fun visitLiteralExpr(expr: Expression.Literal) = expr.value
 
     override fun visitLogicalExpr(expr: Expression.Logical): Any? {

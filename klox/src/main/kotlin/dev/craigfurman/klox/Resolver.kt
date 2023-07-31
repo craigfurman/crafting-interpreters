@@ -35,6 +35,12 @@ class Resolver(private val interpreter: Interpreter, private val errorReporter: 
 
     override fun visitGroupingExpr(expr: Expression.Grouping) = resolve(expr.expr)
 
+    override fun visitListExpr(expr: Expression.ListExpr) {
+        for (element in expr.elements) {
+            resolve(element)
+        }
+    }
+
     override fun visitLiteralExpr(expr: Expression.Literal) {
     }
 

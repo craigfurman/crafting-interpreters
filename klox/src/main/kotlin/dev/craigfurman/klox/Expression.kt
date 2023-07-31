@@ -17,8 +17,8 @@ sealed interface Expression {
 
     data class Get(val obj: Expression, val name: Token) : Expression
     data class Grouping(val expr: Expression) : Expression
+    data class ListExpr(val bracket: Token, val elements: List<Expression>) : Expression
     data class Literal(val value: Any?) : Expression
-
     data class Logical(
         val left: Expression,
         val operator: Token,
@@ -47,6 +47,7 @@ sealed interface Expression {
         fun visitCallExpr(expr: Call): R
         fun visitGetExpr(expr: Get): R
         fun visitGroupingExpr(expr: Grouping): R
+        fun visitListExpr(expr: ListExpr): R
         fun visitLiteralExpr(expr: Literal): R
         fun visitLogicalExpr(expr: Logical): R
         fun visitSetExpr(expr: SetExpr): R
@@ -61,6 +62,7 @@ sealed interface Expression {
             is Call -> visitCallExpr(expr)
             is Get -> visitGetExpr(expr)
             is Grouping -> visitGroupingExpr(expr)
+            is ListExpr -> visitListExpr(expr)
             is Literal -> visitLiteralExpr(expr)
             is Logical -> visitLogicalExpr(expr)
             is SetExpr -> visitSetExpr(expr)

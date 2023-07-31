@@ -12,11 +12,10 @@ object Clock : NativeFunction() {
 
 object LoxList : LoxClass("List", mapOf()) {
     override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
-        return LoxListInstance(this)
+        return Instance()
     }
 
-    private class LoxListInstance(klass: LoxClass) : LoxInstance(klass) {
-        private val storage = ArrayList<Any?>()
+    class Instance(private val storage: MutableList<Any?> = ArrayList()) : LoxInstance(LoxList) {
         override fun get(name: Token): Any? {
             return when (name.lexeme) {
                 "length" -> object : NativeFunction() {

@@ -33,6 +33,10 @@ class AstPrinter : Expression.Visitor<String> {
     override fun visitGroupingExpr(expr: Expression.Grouping) =
         parenthesize("group", expr.expr)
 
+    override fun visitListExpr(expr: Expression.ListExpr): String {
+        TODO("Not yet implemented")
+    }
+
     override fun visitLiteralExpr(expr: Expression.Literal) =
         when (expr.value) {
             null -> "nil"

@@ -49,7 +49,8 @@ import dev.craigfurman.klox.TokenType.*
 // call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 // arguments      → expression ( "," expression )* ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
-//                | "(" expression ")" | IDENTIFIER;
+//                | "(" expression ")" | IDENTIFIER | list ;
+// list           → "[" ( expression "," )* "]"
 
 class Parser(
     private val tokens: List<Token>,
@@ -313,6 +314,20 @@ class Parser(
             val expr = expression()
             consume(RIGHT_PAREN, "Expect ')' after expression.")
             return Expression.Grouping(expr)
+        }
+
+        // List literal
+        if (match(LEFT_BRACKET)) {
+            val bracket = previous()
+            val elements = ArrayList<Expression>()
+            while (!currentTokenHasType(RIGHT_BRACKET) && !isAtEnd()) {
+                elements.add(expression())
+                if (!currentTokenHasType(RIGHT_BRACKET)) {
+                    consume(COMMA, "Expect ',' between list elements.")
+                }
+            }
+            consume(RIGHT_BRACKET, "Expect ']' after list literal.")
+            return Expression.ListExpr(bracket, elements)
         }
 
         throw newError(peek(), "Expect expression.")
