@@ -31,6 +31,7 @@ class Scanner(
             ',' -> addToken(COMMA)
             '.' -> addToken(DOT)
             '-' -> addToken(MINUS)
+            '|' -> addToken(PIPE)
             '+' -> addToken(PLUS)
             ';' -> addToken(SEMICOLON)
             '*' -> addToken(STAR)

@@ -37,7 +37,8 @@ import dev.craigfurman.klox.TokenType.*
 //
 // expression     → assignment ;
 // assignment     → ( call "." )? IDENTIFIER "=" assignment
-//                | logic_or ;
+//                | pipe ;
+// pipe           → logic_or ( "|" call )* // I went off-book, not sure if this is the right grammar
 // logic_or       → logic_and ( "or" logic_and )* ;
 // logic_and      → equality ( "and" equality )* ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -211,7 +212,9 @@ class Parser(
     private fun assignment(): Expression {
         val expr = or()
 
-        if (match(EQUAL)) {
+        if (match(PIPE)) {
+            return finishPipe(expr)
+        } else if (match(EQUAL)) {
             val equals = previous()
             val value = assignment()
 
@@ -226,6 +229,21 @@ class Parser(
         }
 
         return expr
+    }
+
+    // desugar pipe expressions into chains of function calls
+    private fun finishPipe(expr: Expression): Expression {
+        val token = previous()
+        var pipe = expr
+        do {
+            val fn = call()
+            if (fn !is Expression.Call) {
+                errorReporter.error(token, "Expected valid pipeline.")
+                return pipe
+            }
+            pipe = Expression.Call(fn, fn.paren, listOf(pipe))
+        } while (match(PIPE))
+        return pipe
     }
 
     private fun or() = parseLeftAssociativeBinaryOperators(::and, Expression::Logical, OR)

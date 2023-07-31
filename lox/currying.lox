@@ -1,0 +1,33 @@
+// Chains of functions, 3 ways
+
+// Procedural
+fun add(a, b) {
+  return a + b;
+}
+
+print add(4, add(3, add(2, 1)));
+
+// Curried
+fun addCurry(a) {
+  fun add(b) {
+    return a + b;
+  }
+  return add;
+}
+
+print addCurry(
+  addCurry(
+    addCurry(1)(2)
+  )(3)
+)(4);
+
+// Curried with pipe helpers
+fun pipe(value, fFirst, fSecond, fThird) {
+  return fThird(fSecond(fFirst(value)));
+}
+
+print pipe(1, addCurry(2), addCurry(3), addCurry(4));
+
+// with pipe operator
+print 1 | addCurry(2) | addCurry(3) | addCurry(4);
+
