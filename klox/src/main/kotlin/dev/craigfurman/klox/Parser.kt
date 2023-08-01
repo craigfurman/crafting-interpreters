@@ -139,6 +139,10 @@ class Parser(
 
     private fun forStatement(): Stmt {
         consume(LEFT_PAREN, "Expect '(' after 'for'.")
+        if (match(IDENTIFIER)) {
+            return forInListStatement()
+        }
+
         val initializer =
             if (match(SEMICOLON)) null else if (match(VAR)) varDeclaration() else exprStatement()
         val condition =
@@ -158,6 +162,69 @@ class Parser(
 
         if (initializer != null) body = Stmt.Block(listOf(initializer, body))
         return body
+    }
+
+    // desugar for-in to while loop
+    // for (e in list) Stmt;
+    // ->
+    // {
+    //     var i = 0;
+    //     while (i < list.length()) {
+    //         var e = list.get(i);
+    //         stmt;
+    //         i = i + 1;
+    //     }
+    // }
+    private fun forInListStatement(): Stmt {
+        val iter = previous()
+
+        consume(IN, "Expected for-in loop.")
+        val list = expression()
+        consume(RIGHT_PAREN, "Expect ')' after for clauses.")
+        val body = statement()
+
+        // Index initialisation
+        // Use an illegal token name to avoid collision
+        val idxToken = Token(IDENTIFIER, "\$i", "\$i", iter.line)
+        val initializer = Stmt.Var(idxToken, Expression.Literal(0.0))
+
+        // Iter variable initialisation
+        val tokenParen = Token(LEFT_PAREN, "(", "(", iter.line)
+        val getMethod = Token(IDENTIFIER, "get", "get", iter.line)
+        val getListElement =
+            Expression.Call(
+                Expression.Get(list, getMethod),
+                tokenParen,
+                listOf(Expression.Variable(idxToken))
+            )
+
+        // Condition
+        val tokenLT = Token(LESS, "<", "<", iter.line)
+        val lengthMethod = Token(IDENTIFIER, "length", "length", iter.line)
+        val condition = Expression.Binary(
+            Expression.Variable(idxToken),
+            tokenLT,
+            Expression.Call(Expression.Get(list, lengthMethod), tokenParen, listOf()),
+        )
+
+        // Increment
+        val tokenPlus = Token(PLUS, "+", "+", iter.line)
+        val increment = Stmt.Expr(
+            Expression.Assign(
+                idxToken,
+                Expression.Binary(Expression.Variable(idxToken), tokenPlus, Expression.Literal(1.0))
+            )
+        )
+
+        return Stmt.Block(
+            listOf(
+                initializer,
+                Stmt.While(
+                    condition,
+                    Stmt.Block(listOf(Stmt.Var(iter, getListElement), body, increment))
+                )
+            )
+        )
     }
 
     private fun ifStatement(): Stmt {

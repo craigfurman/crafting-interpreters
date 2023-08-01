@@ -14,6 +14,11 @@ for (var i = 0; i < l.length(); i = i + 1) {
   print l.get(i);
 }
 
+// for-in loops
+for (e in l) {
+  print e;
+}
+
 // Access sugar
 print l[0];
 print [1, 2][1];
