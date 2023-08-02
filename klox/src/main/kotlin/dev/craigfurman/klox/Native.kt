@@ -42,6 +42,26 @@ object LoxList : LoxClass("List", mapOf()) {
                     }
                 }
 
+                "set" -> object : NativeFunction() {
+                    override fun arity() = 2
+
+                    override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+                        val idx = arguments[0] as Double
+                        val element = arguments[1]
+                        storage[idx.toInt()] = element
+                        return this
+                    }
+                }
+
+                "remove" -> object : NativeFunction() {
+                    override fun arity() = 1
+
+                    override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+                        storage.removeAt((arguments.first() as Double).toInt())
+                        return this
+                    }
+                }
+
                 else -> null
             }
         }
