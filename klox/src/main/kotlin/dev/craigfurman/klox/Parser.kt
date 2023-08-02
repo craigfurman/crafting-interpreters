@@ -9,7 +9,7 @@ import dev.craigfurman.klox.TokenType.*
 //                | funDecl
 //                | varDecl
 //                | statement ;
-// classDecl      → "class" IDENTIFIER "{" function* "}" ;
+// classDecl      → "class" IDENTIFIER ( "<" IDENTIFIER )? "{" function* "}" ;
 // funDecl        → "fun" function ;
 // function       → IDENTIFIER "(" parameters? ")" block ;
 // parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
@@ -50,7 +50,7 @@ import dev.craigfurman.klox.TokenType.*
 // access         → access ( "[" expression "]" )* | primary
 // arguments      → expression ( "," expression )* ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
-//                | "(" expression ")" | IDENTIFIER | list ;
+//                | "(" expression ")" | IDENTIFIER | list | "super" "." IDENTIFIER ;
 // list           → "[" ( expression "," )* "]"
 
 class Parser(
@@ -81,6 +81,13 @@ class Parser(
 
     private fun classDeclaration(): Stmt {
         val name = consume(IDENTIFIER, "Expect class name.")
+
+        var superClass: Expression.Variable? = null
+        if (match(LESS)) {
+            consume(IDENTIFIER, "Expect superclass name.")
+            superClass = Expression.Variable(previous())
+        }
+
         consume(LEFT_BRACE, "Expect '{' before class body.")
 
         val methods = ArrayList<Stmt.FunctionStmt>()
@@ -89,7 +96,7 @@ class Parser(
         }
 
         consume(RIGHT_BRACE, "Expect '}' after class body.")
-        return Stmt.ClassStmt(name, methods)
+        return Stmt.ClassStmt(name, superClass, methods)
     }
 
     private fun function(kind: FunctionKind): Stmt.FunctionStmt {
@@ -391,6 +398,14 @@ class Parser(
         if (match(TRUE)) return Expression.Literal(true)
         if (match(NIL)) return Expression.Literal(null)
         if (match(NUMBER, STRING)) return Expression.Literal(previous().literal)
+
+        if (match(SUPER)) {
+            val keyword = previous()
+            consume(DOT, "Expect '.' after 'super'.")
+            val method = consume(IDENTIFIER, "Expect superclass method name.")
+            return Expression.Super(keyword, method)
+        }
+
         if (match(THIS)) return Expression.This(previous())
         if (match(IDENTIFIER)) return Expression.Variable(previous())
 

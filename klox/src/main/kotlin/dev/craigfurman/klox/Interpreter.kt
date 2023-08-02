@@ -154,7 +154,15 @@ class Interpreter(
     }
 
     override fun visitSuperExpr(expr: Expression.Super): Any {
-        TODO("Not yet implemented")
+        val distance =
+            locals[expr] ?: throw RuntimeError(expr.keyword, "Expected super to be bound.")
+        val superclass = environment.getAt(distance, "super") as LoxClass
+        val obj = environment.getAt(distance - 1, "this") as LoxInstance
+        val method = superclass.findMethod(expr.method.lexeme) ?: throw RuntimeError(
+            expr.method,
+            "Undefined property '${expr.method.lexeme}'."
+        )
+        return method.bind(obj)
     }
 
     override fun visitThisExpr(expr: Expression.This) = lookUpVariable(expr.keyword, expr)
@@ -177,7 +185,21 @@ class Interpreter(
     }
 
     override fun visitClassStmt(stmt: Stmt.ClassStmt) {
+        var superclass: LoxClass? = null
+        if (stmt.superclass != null) {
+            val sclass = evaluate(stmt.superclass)
+            if (sclass !is LoxClass) {
+                throw RuntimeError(stmt.superclass.name, "Superclass must be a class.")
+            }
+            superclass = sclass
+        }
+
         environment.define(stmt.name.lexeme, null)
+
+        if (stmt.superclass != null) {
+            environment = Environment(environment)
+            environment.define("super", superclass)
+        }
 
         val methods = HashMap<String, LoxFunction>()
         for (method in stmt.methods) {
@@ -185,7 +207,11 @@ class Interpreter(
             methods[method.name.lexeme] = fn
         }
 
-        val klass = LoxClass(stmt.name.lexeme, methods)
+        val klass = LoxClass(stmt.name.lexeme, superclass, methods)
+
+        // We know enclosing is not null, because we know we created a new one above if superclass
+        // is not null
+        if (superclass != null) environment = environment.enclosing!!
         environment.assign(stmt.name, klass)
     }
 

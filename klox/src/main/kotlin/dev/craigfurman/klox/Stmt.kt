@@ -4,6 +4,7 @@ sealed interface Stmt {
     data class Block(val statements: List<Stmt>) : Stmt
     data class ClassStmt(
         val name: Token,
+        val superclass: Expression.Variable?,
         val methods: List<FunctionStmt>
     ) : Stmt
 

@@ -1,6 +1,6 @@
 package dev.craigfurman.klox
 
-class Environment(private val enclosing: Environment? = null) {
+class Environment(internal val enclosing: Environment? = null) {
     private val values = HashMap<String, Any?>()
 
     // TODO does this handle explicit/implicit nil binding?

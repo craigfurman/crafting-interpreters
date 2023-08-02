@@ -10,7 +10,7 @@ object Clock : NativeFunction() {
         System.currentTimeMillis() / 1000.0
 }
 
-object LoxList : LoxClass("List", mapOf()) {
+object LoxList : LoxClass("List", null, mapOf()) {
     override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
         return Instance()
     }

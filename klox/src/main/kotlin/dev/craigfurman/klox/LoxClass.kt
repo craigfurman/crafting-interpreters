@@ -1,6 +1,10 @@
 package dev.craigfurman.klox
 
-open class LoxClass(val name: String, private val methods: Map<String, LoxFunction>) : LoxCallable {
+open class LoxClass(
+    val name: String,
+    private val superclass: LoxClass?,
+    private val methods: Map<String, LoxFunction>
+) : LoxCallable {
     override fun arity() = when (val init = findMethod("init")) {
         null -> 0
         else -> init.arity()
@@ -12,7 +16,11 @@ open class LoxClass(val name: String, private val methods: Map<String, LoxFuncti
         return instance
     }
 
-    fun findMethod(name: String) = methods[name]
+    fun findMethod(name: String): LoxFunction? {
+        val method = methods[name]
+        if (method != null) return method
+        return superclass?.findMethod(name)
+    }
 
     override fun toString() = name
 }
