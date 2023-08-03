@@ -24,6 +24,7 @@ for (e in l) {
 }
 
 // Access sugar
+l[0] = 5;
 print l[0];
 print [1, 2][1];
 

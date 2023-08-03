@@ -370,6 +370,17 @@ class Parser(
             val bracket = previous()
             val idx = expression()
             consume(RIGHT_BRACKET, "Expect ']' after list access.")
+
+            // Element reassignment
+            if (match(EQUAL)) {
+                val value = expression()
+                return Expression.Call(
+                    Expression.Get(expr, Token(IDENTIFIER, "set", "set", bracket.line)),
+                    bracket,
+                    listOf(idx, value),
+                )
+            }
+
             expr = Expression.Call(
                 Expression.Get(expr, Token(IDENTIFIER, "get", "get", bracket.line)),
                 bracket,
