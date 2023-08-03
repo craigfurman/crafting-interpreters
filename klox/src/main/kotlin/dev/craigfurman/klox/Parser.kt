@@ -140,7 +140,7 @@ class Parser(
 
     private fun exprStatement(): Stmt {
         val value = expression()
-        consume(SEMICOLON, "Expect ';' after value.")
+        consume(SEMICOLON, "Expect ';' after expression.")
         return Stmt.Expr(value)
     }
 

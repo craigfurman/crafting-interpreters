@@ -56,7 +56,7 @@ class Lox(replSession: Boolean = false) : ErrorReporter, RuntimeErrorReporter {
     }
 
     override fun runtimeError(error: RuntimeError) {
-        println(error.message + "\n[line ${error.token.line}]")
+        System.err.println(error.message + "\n[line ${error.token.line}]")
         this.hadRuntimeError = true
     }
 

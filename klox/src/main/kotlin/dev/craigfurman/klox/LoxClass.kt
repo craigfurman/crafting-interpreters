@@ -34,7 +34,7 @@ open class LoxInstance(private val klass: LoxClass) {
         val method = klass.findMethod(name.lexeme)
         if (method != null) return method.bind(this)
 
-        throw RuntimeError(name, "Undefined property ${name.lexeme}.")
+        throw RuntimeError(name, "Undefined property '${name.lexeme}'.")
     }
 
     fun set(name: Token, value: Any?) {

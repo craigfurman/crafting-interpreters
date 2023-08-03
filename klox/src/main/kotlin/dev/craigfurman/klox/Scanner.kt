@@ -142,7 +142,7 @@ class Scanner(
     }
 
     private fun identifier() {
-        while (isAlpha(peek())) {
+        while (isAlphaNumeric(peek())) {
             advance()
         }
 
@@ -159,3 +159,5 @@ private fun isDigit(c: Char) = c in '0'..'9'
 private fun isAlpha(c: Char) = c in 'a'..'z' ||
         c in 'A'..'Z' ||
         c == '_'
+
+private fun isAlphaNumeric(c: Char) = isAlpha(c) || isDigit(c)
