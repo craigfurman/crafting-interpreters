@@ -146,7 +146,7 @@ class Parser(
 
     private fun forStatement(): Stmt {
         consume(LEFT_PAREN, "Expect '(' after 'for'.")
-        if (match(IDENTIFIER)) {
+        if (lookAhead(IN, RIGHT_PAREN)) {
             return forInListStatement()
         }
 
@@ -183,7 +183,7 @@ class Parser(
     //     }
     // }
     private fun forInListStatement(): Stmt {
-        val iter = previous()
+        val iter = consume(IDENTIFIER, "Expect for-in loop to start with an identifier.")
 
         consume(IN, "Expected for-in loop.")
         val list = expression()
@@ -463,6 +463,19 @@ class Parser(
             current++
         }
         return previous()
+    }
+
+    // This is not in the book. It seems a shame to introduce this relatively ugly function, but
+    // I couldn't figure out how to introduce for-in loops without it.
+    private fun lookAhead(target: TokenType, end: TokenType): Boolean {
+        var i = 0;
+        while (true) {
+            if (isAtEnd()) return false
+            val token = tokens[current + i]
+            if (token.type == end) return false
+            if (token.type == target) return true
+            i++
+        }
     }
 
     private fun currentTokenHasType(tokenType: TokenType): Boolean {
