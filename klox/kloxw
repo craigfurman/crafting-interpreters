@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+java -jar "$(dirname "$0")/build/libs/klox-1.0-SNAPSHOT-all.jar" $@
