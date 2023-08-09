@@ -36,10 +36,17 @@ func RunFile(path string) int {
 
 func runSource(source string) {
 	tokens := scan(source)
+	expr := parse(tokens)
 
-	// TODO remove when we have a parser
-	for _, token := range tokens {
-		spew.Dump(token)
+	// TODO remove when we have an interpreter
+	spew.Dump(expr)
+}
+
+func tokenError(token Token, message string) {
+	if token.typ == TOKEN_EOF {
+		reportError(token.line, " at end", message)
+	} else {
+		reportError(token.line, fmt.Sprintf(" at '%s'", token.lexeme), message)
 	}
 }
 
