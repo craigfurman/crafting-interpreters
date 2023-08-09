@@ -2,7 +2,7 @@ package lox
 
 import "errors"
 
-func parse(tokens []Token) Expr {
+func parse(tokens []Token) []Stmt {
 	p := &parser{tokens: tokens}
 	return p.parse()
 }
@@ -14,13 +14,55 @@ type parser struct {
 
 var ParseError = errors.New("parse error")
 
-func (p *parser) parse() Expr {
+func (p *parser) parse() []Stmt {
+	var statements []Stmt
+	for !p.isAtEnd() {
+		stmt, err := p.declaration()
+		if err != nil {
+			if errors.Is(err, ParseError) {
+				p.synchronize()
+				continue
+			}
+		}
+		statements = append(statements, stmt)
+	}
+	return statements
+}
+
+// statements
+
+func (p *parser) declaration() (Stmt, error) {
+	return p.statement()
+}
+
+func (p *parser) statement() (Stmt, error) {
+	if p.match(TOKEN_PRINT) {
+		return p.printStmt()
+	}
+
+	return p.exprStmt()
+}
+
+func (p *parser) exprStmt() (Stmt, error) {
 	expr, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after expression"); err != nil {
+		return nil, err
+	}
+	return ExprStmt{expr}, nil
+}
 
-	// TODO add synchronization
-	must(err)
-
-	return expr
+func (p *parser) printStmt() (Stmt, error) {
+	value, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after expression"); err != nil {
+		return nil, err
+	}
+	return PrintStmt{value}, nil
 }
 
 // expressions
@@ -146,4 +188,20 @@ func (p parser) previous() Token {
 
 func (p parser) isAtEnd() bool {
 	return p.peek().typ == TOKEN_EOF
+}
+
+// error recovery
+var startOfDeclTypes = []TokenType{TOKEN_CLASS, TOKEN_FUN, TOKEN_VAR, TOKEN_FOR, TOKEN_IF, TOKEN_WHILE, TOKEN_PRINT, TOKEN_RETURN}
+
+func (p *parser) synchronize() {
+	p.advance()
+	for !p.isAtEnd() {
+		if p.previous().typ == TOKEN_SEMICOLON {
+			return
+		}
+		if contains(startOfDeclTypes, p.peek().typ) {
+			return
+		}
+		p.advance()
+	}
 }

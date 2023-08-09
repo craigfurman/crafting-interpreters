@@ -39,15 +39,12 @@ func RunFile(path string) int {
 
 func runSource(source string) {
 	tokens := scan(source)
-	expr := parse(tokens)
+	statements := parse(tokens)
 	if hadError {
 		return
 	}
 
-	// TODO the interpreter is just an arithmetic expression evaluator for now
-	val, err := interpreter.evaluate(expr)
-	must(err) // TODO no
-	fmt.Println(val)
+	interpreter.interpret(statements)
 }
 
 func tokenError(token Token, message string) {

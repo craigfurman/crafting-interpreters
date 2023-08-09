@@ -4,8 +4,42 @@ import "fmt"
 
 type Interpreter struct{}
 
+func (i *Interpreter) interpret(statements []Stmt) {
+	for _, stmt := range statements {
+		if err := i.execute(stmt); err != nil {
+			if runtimeErr, ok := err.(RuntimeError); ok {
+				reportRuntimeError(runtimeErr)
+				return
+			}
+
+			// panic all other errors
+			must(err)
+		}
+	}
+}
+
+func (i *Interpreter) execute(stmt Stmt) error {
+	return stmt.Accept(i)
+}
+
 func (i *Interpreter) evaluate(expr Expr) (any, error) {
 	return expr.Accept(i)
+}
+
+// Expressions might have side effects. We evaluate it and discard the value in
+// these statements.
+func (i *Interpreter) VisitExprStmt(stmt ExprStmt) error {
+	_, err := i.evaluate(stmt.expr)
+	return err
+}
+
+func (i *Interpreter) VisitPrintStmt(stmt PrintStmt) error {
+	value, err := i.evaluate(stmt.expr)
+	if err != nil {
+		return err
+	}
+	fmt.Println(value)
+	return nil
 }
 
 func (i *Interpreter) VisitBinaryExpr(expr BinaryExpr) (any, error) {
