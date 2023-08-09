@@ -80,6 +80,30 @@ func (i *Interpreter) VisitVarStmt(stmt VarStmt) error {
 	return nil
 }
 
+func (i *Interpreter) VisitWhileStmt(stmt WhileStmt) error {
+	for {
+		cond, err := i.evaluate(stmt.condition)
+		if err != nil {
+			return err
+		}
+		if !isTruthy(cond) {
+			return nil
+		}
+
+		if err := i.execute(stmt.body); err != nil {
+			return err
+		}
+	}
+}
+
+func (i *Interpreter) VisitAssignExpr(expr AssignExpr) (any, error) {
+	value, err := i.evaluate(expr.expr)
+	if err != nil {
+		return nil, err
+	}
+	return value, i.environment.assign(expr.name, value)
+}
+
 func (i *Interpreter) VisitBinaryExpr(expr BinaryExpr) (any, error) {
 	left, err := i.evaluate(expr.left)
 	if err != nil {

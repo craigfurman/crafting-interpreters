@@ -63,6 +63,9 @@ func (p *parser) statement() (Stmt, error) {
 	if p.match(TOKEN_PRINT) {
 		return p.printStmt()
 	}
+	if p.match(TOKEN_WHILE) {
+		return p.whileStmt()
+	}
 	if p.match(TOKEN_LEFT_BRACE) {
 		stmts, err := p.block()
 		if err != nil {
@@ -121,6 +124,24 @@ func (p *parser) printStmt() (Stmt, error) {
 	return PrintStmt{value}, nil
 }
 
+func (p *parser) whileStmt() (Stmt, error) {
+	if _, err := p.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'."); err != nil {
+		return nil, err
+	}
+	cond, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition."); err != nil {
+		return nil, err
+	}
+	body, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+	return WhileStmt{condition: cond, body: body}, nil
+}
+
 func (p *parser) block() ([]Stmt, error) {
 	var statements []Stmt
 	for !p.currentIs(TOKEN_RIGHT_BRACE) && !p.isAtEnd() {
@@ -139,7 +160,32 @@ func (p *parser) block() ([]Stmt, error) {
 // expressions
 
 func (p *parser) expression() (Expr, error) {
-	return p.or()
+	return p.assignment()
+}
+
+func (p *parser) assignment() (Expr, error) {
+	expr, err := p.or()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.match(TOKEN_EQUAL) {
+		equals := p.previous()
+		newValue, err := p.expression()
+		if err != nil {
+			return nil, err
+		}
+
+		switch tkn := expr.(type) {
+		case VarExpr:
+			return AssignExpr{name: tkn.name, expr: newValue}, nil
+		default:
+			// Don't return an error here, for reasons I don't actually know
+			reportRuntimeError(RuntimeError{token: equals, message: "Invalid assignment target."})
+		}
+	}
+
+	return expr, nil
 }
 
 func (p *parser) or() (Expr, error) {
