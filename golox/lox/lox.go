@@ -9,7 +9,7 @@ import (
 var (
 	hadError        = false
 	hadRuntimeError = false
-	interpreter     = &Interpreter{}
+	interpreter     = newInterpreter()
 )
 
 func REPL() {

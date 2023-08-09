@@ -32,7 +32,28 @@ func (p *parser) parse() []Stmt {
 // statements
 
 func (p *parser) declaration() (Stmt, error) {
+	if p.match(TOKEN_VAR) {
+		return p.varDecl()
+	}
 	return p.statement()
+}
+
+func (p *parser) varDecl() (Stmt, error) {
+	name, err := p.consume(TOKEN_IDENTIFIER, "Expect variable name.")
+	if err != nil {
+		return nil, err
+	}
+	var initializer Expr = nil
+	if p.match(TOKEN_EQUAL) {
+		initializer, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration."); err != nil {
+		return nil, err
+	}
+	return VarStmt{name: name, initializer: initializer}, nil
 }
 
 func (p *parser) statement() (Stmt, error) {
@@ -48,7 +69,7 @@ func (p *parser) exprStmt() (Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after expression"); err != nil {
+	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after expression."); err != nil {
 		return nil, err
 	}
 	return ExprStmt{expr}, nil
@@ -59,7 +80,7 @@ func (p *parser) printStmt() (Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after expression"); err != nil {
+	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after expression."); err != nil {
 		return nil, err
 	}
 	return PrintStmt{value}, nil
@@ -127,6 +148,9 @@ func (p *parser) primaryExpression() (Expr, error) {
 	}
 	if p.match(TOKEN_NUMBER, TOKEN_STRING) {
 		return LiteralExpr{p.previous().literal}, nil
+	}
+	if p.match(TOKEN_IDENTIFIER) {
+		return VarExpr{p.previous()}, nil
 	}
 	if p.match(TOKEN_LEFT_PAREN) {
 		expr, err := p.expression()

@@ -2,7 +2,15 @@ package lox
 
 import "fmt"
 
-type Interpreter struct{}
+type Interpreter struct {
+	environment *Environment
+}
+
+func newInterpreter() *Interpreter {
+	return &Interpreter{
+		environment: &Environment{values: map[string]any{}},
+	}
+}
 
 func (i *Interpreter) interpret(statements []Stmt) {
 	for _, stmt := range statements {
@@ -39,6 +47,19 @@ func (i *Interpreter) VisitPrintStmt(stmt PrintStmt) error {
 		return err
 	}
 	fmt.Println(value)
+	return nil
+}
+
+func (i *Interpreter) VisitVarStmt(stmt VarStmt) error {
+	var value any
+	if stmt.initializer != nil {
+		var err error
+		value, err = i.evaluate(stmt.initializer)
+		if err != nil {
+			return err
+		}
+	}
+	i.environment.define(stmt.name.lexeme, value)
 	return nil
 }
 
@@ -113,6 +134,10 @@ func (i *Interpreter) VisitUnaryExpr(expr UnaryExpr) (any, error) {
 	default:
 		return nil, fmt.Errorf("unexpected unary operator: %s", expr.operator.lexeme)
 	}
+}
+
+func (i *Interpreter) VisitVarExpr(expr VarExpr) (any, error) {
+	return i.environment.get(expr.name)
 }
 
 func checkNumberOperand(operator Token, value any) (float64, error) {
