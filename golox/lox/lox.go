@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 var (
-	hadError = false
+	hadError        = false
+	hadRuntimeError = false
+	interpreter     = &Interpreter{}
 )
 
 func REPL() {
@@ -31,15 +31,23 @@ func RunFile(path string) int {
 	if hadError {
 		return 65
 	}
+	if hadRuntimeError {
+		return 70
+	}
 	return 0
 }
 
 func runSource(source string) {
 	tokens := scan(source)
 	expr := parse(tokens)
+	if hadError {
+		return
+	}
 
-	// TODO remove when we have an interpreter
-	spew.Dump(expr)
+	// TODO the interpreter is just an arithmetic expression evaluator for now
+	val, err := interpreter.evaluate(expr)
+	must(err) // TODO no
+	fmt.Println(val)
 }
 
 func tokenError(token Token, message string) {
@@ -53,6 +61,20 @@ func tokenError(token Token, message string) {
 func reportError(line int, where string, message string) {
 	fmt.Fprintf(os.Stderr, "[line %d] Error%s: %s\n", line, where, message)
 	hadError = true
+}
+
+type RuntimeError struct {
+	token   Token
+	message string
+}
+
+func (e RuntimeError) Error() string {
+	return e.message
+}
+
+func reportRuntimeError(err RuntimeError) {
+	fmt.Fprintf(os.Stderr, "%s \n[line %d]", err.message, err.token.line)
+	hadRuntimeError = true
 }
 
 func must(err error) {
