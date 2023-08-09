@@ -1,0 +1,6 @@
+var a = 2;
+if (a < 3 or a != 2) {
+  print "yes";
+} else {
+  print "shouldn't see this";
+}

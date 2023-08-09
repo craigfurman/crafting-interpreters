@@ -57,10 +57,19 @@ func (p *parser) varDecl() (Stmt, error) {
 }
 
 func (p *parser) statement() (Stmt, error) {
+	if p.match(TOKEN_IF) {
+		return p.ifStmt()
+	}
 	if p.match(TOKEN_PRINT) {
 		return p.printStmt()
 	}
-
+	if p.match(TOKEN_LEFT_BRACE) {
+		stmts, err := p.block()
+		if err != nil {
+			return nil, err
+		}
+		return BlockStmt{stmts}, nil
+	}
 	return p.exprStmt()
 }
 
@@ -75,6 +84,32 @@ func (p *parser) exprStmt() (Stmt, error) {
 	return ExprStmt{expr}, nil
 }
 
+func (p *parser) ifStmt() (Stmt, error) {
+	if _, err := p.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'."); err != nil {
+		return nil, err
+	}
+	condition, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.consume(TOKEN_RIGHT_PAREN, "Expect ')' after if condition."); err != nil {
+		return nil, err
+	}
+	thenBr, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+
+	var elseBr Stmt
+	if p.match(TOKEN_ELSE) {
+		elseBr, err = p.statement()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return IfStmt{condition: condition, thenBr: thenBr, elseBr: elseBr}, nil
+}
+
 func (p *parser) printStmt() (Stmt, error) {
 	value, err := p.expression()
 	if err != nil {
@@ -86,42 +121,61 @@ func (p *parser) printStmt() (Stmt, error) {
 	return PrintStmt{value}, nil
 }
 
+func (p *parser) block() ([]Stmt, error) {
+	var statements []Stmt
+	for !p.currentIs(TOKEN_RIGHT_BRACE) && !p.isAtEnd() {
+		decl, err := p.declaration()
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, decl)
+	}
+	if _, err := p.consume(TOKEN_RIGHT_BRACE, "Expect '}' after block."); err != nil {
+		return nil, err
+	}
+	return statements, nil
+}
+
 // expressions
 
 func (p *parser) expression() (Expr, error) {
-	return p.termExpression()
+	return p.or()
+}
+
+func (p *parser) or() (Expr, error) {
+	return p.parseLeftAssociativeBinaryExprs(p.and, func(left, right Expr, op Token) Expr {
+		return LogicalExpr{left: left, operator: op, right: right}
+	}, TOKEN_OR)
+}
+
+func (p *parser) and() (Expr, error) {
+	return p.parseLeftAssociativeBinaryExprs(p.equality, func(left, right Expr, op Token) Expr {
+		return LogicalExpr{left: left, operator: op, right: right}
+	}, TOKEN_AND)
+}
+
+func (p *parser) equality() (Expr, error) {
+	return p.parseLeftAssociativeBinaryExprs(p.comparison, func(left, right Expr, op Token) Expr {
+		return BinaryExpr{left: left, operator: op, right: right}
+	}, TOKEN_EQUAL_EQUAL, TOKEN_BANG_EQUAL)
+}
+
+func (p *parser) comparison() (Expr, error) {
+	return p.parseLeftAssociativeBinaryExprs(p.termExpression, func(left, right Expr, op Token) Expr {
+		return BinaryExpr{left: left, operator: op, right: right}
+	}, TOKEN_GREATER, TOKEN_GREATER_EQUAL, TOKEN_LESS, TOKEN_LESS_EQUAL)
 }
 
 func (p *parser) termExpression() (Expr, error) {
-	expr, err := p.factorExpression()
-	if err != nil {
-		return nil, err
-	}
-	for p.match(TOKEN_PLUS, TOKEN_MINUS) {
-		op := p.previous()
-		right, err := p.factorExpression()
-		if err != nil {
-			return nil, err
-		}
-		expr = BinaryExpr{left: expr, operator: op, right: right}
-	}
-	return expr, nil
+	return p.parseLeftAssociativeBinaryExprs(p.factorExpression, func(left, right Expr, op Token) Expr {
+		return BinaryExpr{left: left, operator: op, right: right}
+	}, TOKEN_PLUS, TOKEN_MINUS)
 }
 
 func (p *parser) factorExpression() (Expr, error) {
-	expr, err := p.unaryExpression()
-	if err != nil {
-		return nil, err
-	}
-	for p.match(TOKEN_STAR, TOKEN_SLASH) {
-		op := p.previous()
-		right, err := p.unaryExpression()
-		if err != nil {
-			return nil, err
-		}
-		expr = BinaryExpr{left: expr, operator: op, right: right}
-	}
-	return expr, nil
+	return p.parseLeftAssociativeBinaryExprs(p.unaryExpression, func(left, right Expr, op Token) Expr {
+		return BinaryExpr{left: left, operator: op, right: right}
+	}, TOKEN_STAR, TOKEN_SLASH)
 }
 
 func (p *parser) unaryExpression() (Expr, error) {
@@ -168,6 +222,26 @@ func (p *parser) primaryExpression() (Expr, error) {
 }
 
 // helpers
+
+func (p *parser) parseLeftAssociativeBinaryExprs(
+	higherPrecedence func() (Expr, error),
+	newExpr func(left, right Expr, operator Token) Expr,
+	typs ...TokenType,
+) (Expr, error) {
+	expr, err := higherPrecedence()
+	if err != nil {
+		return nil, err
+	}
+	for p.match(typs...) {
+		op := p.previous()
+		right, err := higherPrecedence()
+		if err != nil {
+			return nil, err
+		}
+		expr = newExpr(expr, right, op)
+	}
+	return expr, nil
+}
 
 func (p *parser) match(typs ...TokenType) bool {
 	for _, typ := range typs {

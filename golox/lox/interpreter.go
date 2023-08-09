@@ -8,7 +8,7 @@ type Interpreter struct {
 
 func newInterpreter() *Interpreter {
 	return &Interpreter{
-		environment: &Environment{values: map[string]any{}},
+		environment: newEnvironment(nil),
 	}
 }
 
@@ -34,11 +34,28 @@ func (i *Interpreter) evaluate(expr Expr) (any, error) {
 	return expr.Accept(i)
 }
 
+func (i *Interpreter) VisitBlockStmt(stmt BlockStmt) error {
+	return i.executeBlock(stmt.statements, newEnvironment(i.environment))
+}
+
 // Expressions might have side effects. We evaluate it and discard the value in
 // these statements.
 func (i *Interpreter) VisitExprStmt(stmt ExprStmt) error {
 	_, err := i.evaluate(stmt.expr)
 	return err
+}
+
+func (i *Interpreter) VisitIfStmt(stmt IfStmt) error {
+	cond, err := i.evaluate(stmt.condition)
+	if err != nil {
+		return err
+	}
+	if isTruthy(cond) {
+		return i.execute(stmt.thenBr)
+	} else if stmt.elseBr != nil {
+		return i.execute(stmt.elseBr)
+	}
+	return nil
 }
 
 func (i *Interpreter) VisitPrintStmt(stmt PrintStmt) error {
@@ -103,6 +120,36 @@ func (i *Interpreter) VisitBinaryExpr(expr BinaryExpr) (any, error) {
 		}
 		return leftNum / rightNum, nil
 
+	case TOKEN_GREATER:
+		leftNum, rightNum, err := checkOperands[float64](expr.operator, left, right, "Operands must be numbers.")
+		if err != nil {
+			return nil, err
+		}
+		return leftNum > rightNum, nil
+	case TOKEN_GREATER_EQUAL:
+		leftNum, rightNum, err := checkOperands[float64](expr.operator, left, right, "Operands must be numbers.")
+		if err != nil {
+			return nil, err
+		}
+		return leftNum >= rightNum, nil
+	case TOKEN_LESS:
+		leftNum, rightNum, err := checkOperands[float64](expr.operator, left, right, "Operands must be numbers.")
+		if err != nil {
+			return nil, err
+		}
+		return leftNum < rightNum, nil
+	case TOKEN_LESS_EQUAL:
+		leftNum, rightNum, err := checkOperands[float64](expr.operator, left, right, "Operands must be numbers.")
+		if err != nil {
+			return nil, err
+		}
+		return leftNum <= rightNum, nil
+
+	case TOKEN_EQUAL_EQUAL:
+		return left == right, nil
+	case TOKEN_BANG_EQUAL:
+		return left != right, nil
+
 	// If we end up here, we have a parser error
 	default:
 		return nil, fmt.Errorf("unexpected binary operator: %s", expr.operator.lexeme)
@@ -115,6 +162,23 @@ func (i *Interpreter) VisitGroupingExpr(expr GroupingExpr) (any, error) {
 
 func (i *Interpreter) VisitLiteralExpr(expr LiteralExpr) (any, error) {
 	return expr.value, nil
+}
+
+func (i *Interpreter) VisitLogicalExpr(expr LogicalExpr) (any, error) {
+	left, err := i.evaluate(expr.left)
+	if err != nil {
+		return nil, err
+	}
+	if expr.operator.typ == TOKEN_OR {
+		if isTruthy(left) {
+			return left, nil
+		}
+	} else {
+		if !isTruthy(left) {
+			return left, nil
+		}
+	}
+	return i.evaluate(expr.right)
 }
 
 func (i *Interpreter) VisitUnaryExpr(expr UnaryExpr) (any, error) {
@@ -140,6 +204,19 @@ func (i *Interpreter) VisitVarExpr(expr VarExpr) (any, error) {
 	return i.environment.get(expr.name)
 }
 
+func (i *Interpreter) executeBlock(stmts []Stmt, env *Environment) error {
+	previous := i.environment
+	i.environment = env
+	defer func() { i.environment = previous }()
+
+	for _, stmt := range stmts {
+		if err := i.execute(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func checkNumberOperand(operator Token, value any) (float64, error) {
 	switch v := value.(type) {
 	case float64:
@@ -156,4 +233,14 @@ func checkOperands[T any](operator Token, value1, value2 any, message string) (T
 		return cast1, cast2, RuntimeError{token: operator, message: message}
 	}
 	return cast1, cast2, nil
+}
+
+func isTruthy(val any) bool {
+	if val == nil {
+		return false
+	}
+	if boolVal, ok := val.(bool); ok {
+		return boolVal
+	}
+	return true
 }
