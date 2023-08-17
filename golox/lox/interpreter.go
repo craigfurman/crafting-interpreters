@@ -45,6 +45,12 @@ func (i *Interpreter) VisitExprStmt(stmt ExprStmt) error {
 	return err
 }
 
+func (i *Interpreter) VisitFuncStmt(stmt FuncStmt) error {
+	fn := &LoxFunction{declaration: stmt, closure: i.environment}
+	i.environment.define(stmt.name.lexeme, fn)
+	return nil
+}
+
 func (i *Interpreter) VisitIfStmt(stmt IfStmt) error {
 	cond, err := i.evaluate(stmt.condition)
 	if err != nil {
@@ -65,6 +71,19 @@ func (i *Interpreter) VisitPrintStmt(stmt PrintStmt) error {
 	}
 	fmt.Println(value)
 	return nil
+}
+
+func (i *Interpreter) VisitReturnStmt(stmt ReturnStmt) error {
+	var value any
+	if stmt.value != nil {
+		var err error
+		value, err = i.evaluate(stmt.value)
+		if err != nil {
+			return err
+		}
+	}
+
+	return Return{value: value}
 }
 
 func (i *Interpreter) VisitVarStmt(stmt VarStmt) error {
@@ -180,6 +199,32 @@ func (i *Interpreter) VisitBinaryExpr(expr BinaryExpr) (any, error) {
 	}
 }
 
+func (i *Interpreter) VisitCallExpr(expr CallExpr) (any, error) {
+	callee, err := i.evaluate(expr.callee)
+	if err != nil {
+		return nil, err
+	}
+
+	var args []any
+	for _, argExpr := range expr.arguments {
+		arg, err := i.evaluate(argExpr)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
+	}
+
+	fn, ok := callee.(LoxCallable)
+	if !ok {
+		return nil, RuntimeError{token: expr.paren, message: "Can only call functions and classes."}
+	}
+	if len(args) != fn.Arity() {
+		return nil, RuntimeError{token: expr.paren, message: fmt.Sprintf("Expected %d arguments but got %d.", fn.Arity(), len(args))}
+	}
+
+	return fn.Call(i, args)
+}
+
 func (i *Interpreter) VisitGroupingExpr(expr GroupingExpr) (any, error) {
 	return i.evaluate(expr.expr)
 }
@@ -268,3 +313,10 @@ func isTruthy(val any) bool {
 	}
 	return true
 }
+
+// An error type to unwind the stack on return
+type Return struct {
+	value any
+}
+
+func (Return) Error() string { return "Interpreter error: unhandled return statement" }

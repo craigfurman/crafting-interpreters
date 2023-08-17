@@ -1,6 +1,9 @@
 package lox
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 func parse(tokens []Token) []Stmt {
 	p := &parser{tokens: tokens}
@@ -35,6 +38,9 @@ func (p *parser) declaration() (Stmt, error) {
 	if p.match(TOKEN_VAR) {
 		return p.varDecl()
 	}
+	if p.match(TOKEN_FUN) {
+		return p.function("function")
+	}
 	return p.statement()
 }
 
@@ -56,12 +62,49 @@ func (p *parser) varDecl() (Stmt, error) {
 	return VarStmt{name: name, initializer: initializer}, nil
 }
 
+func (p *parser) function(fnKind string) (Stmt, error) {
+	name, err := p.consume(TOKEN_IDENTIFIER, fmt.Sprintf("Expect %s name.", fnKind))
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := p.consume(TOKEN_LEFT_PAREN, fmt.Sprintf("Expect '(' after %s name.", fnKind)); err != nil {
+		return nil, err
+	}
+	var params []Token
+	if !p.currentIs(TOKEN_RIGHT_PAREN) {
+		for do := true; do; do = p.match(TOKEN_COMMA) {
+			param, err := p.consume(TOKEN_IDENTIFIER, "Expect parameter name.")
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, param)
+		}
+	}
+	if _, err := p.consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters."); err != nil {
+		return nil, err
+	}
+
+	if _, err := p.consume(TOKEN_LEFT_BRACE, fmt.Sprintf("Expect '{' before %s body.", fnKind)); err != nil {
+		return nil, err
+	}
+	body, err := p.block()
+	if err != nil {
+		return nil, err
+	}
+
+	return FuncStmt{name: name, params: params, body: body}, nil
+}
+
 func (p *parser) statement() (Stmt, error) {
 	if p.match(TOKEN_IF) {
 		return p.ifStmt()
 	}
 	if p.match(TOKEN_PRINT) {
 		return p.printStmt()
+	}
+	if p.match(TOKEN_RETURN) {
+		return p.returnStmt()
 	}
 	if p.match(TOKEN_WHILE) {
 		return p.whileStmt()
@@ -122,6 +165,22 @@ func (p *parser) printStmt() (Stmt, error) {
 		return nil, err
 	}
 	return PrintStmt{value}, nil
+}
+
+func (p *parser) returnStmt() (Stmt, error) {
+	keyword := p.previous()
+	var value Expr
+	if !p.currentIs(TOKEN_SEMICOLON) {
+		var err error
+		value, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after return value."); err != nil {
+		return nil, err
+	}
+	return ReturnStmt{keyword: keyword, value: value}, nil
 }
 
 func (p *parser) whileStmt() (Stmt, error) {
@@ -233,7 +292,28 @@ func (p *parser) unaryExpression() (Expr, error) {
 		}
 		return UnaryExpr{operator: op, right: right}, nil
 	}
-	return p.primaryExpression()
+	return p.callExpression()
+}
+
+func (p *parser) callExpression() (Expr, error) {
+	expr, err := p.primaryExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// chain of calls
+	for {
+		if p.match(TOKEN_LEFT_PAREN) {
+			expr, err = p.finishCall(expr)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			break
+		}
+	}
+
+	return expr, nil
 }
 
 func (p *parser) primaryExpression() (Expr, error) {
@@ -268,6 +348,25 @@ func (p *parser) primaryExpression() (Expr, error) {
 }
 
 // helpers
+
+func (p *parser) finishCall(callee Expr) (Expr, error) {
+	var args []Expr
+	if !p.currentIs(TOKEN_RIGHT_PAREN) {
+		for do := true; do; do = p.match(TOKEN_COMMA) {
+			arg, err := p.expression()
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, arg)
+		}
+	}
+
+	paren, err := p.consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments")
+	if err != nil {
+		return nil, err
+	}
+	return CallExpr{callee: callee, paren: paren, arguments: args}, nil
+}
 
 func (p *parser) parseLeftAssociativeBinaryExprs(
 	higherPrecedence func() (Expr, error),
