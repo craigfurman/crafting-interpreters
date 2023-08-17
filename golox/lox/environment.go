@@ -23,7 +23,7 @@ func (e *Environment) assign(name Token, value any) error {
 	if e.enclosing != nil {
 		return e.enclosing.assign(name, value)
 	}
-	return RuntimeError{token: name, message: fmt.Sprintf("Undefined variable: '%s'.", name.lexeme)}
+	return RuntimeError{token: name, message: fmt.Sprintf("Undefined variable '%s'.", name.lexeme)}
 }
 
 func (e *Environment) assignAt(distance int, name Token, value any) {
@@ -37,7 +37,7 @@ func (e *Environment) get(name Token) (any, error) {
 	if e.enclosing != nil {
 		return e.enclosing.get(name)
 	}
-	return nil, RuntimeError{token: name, message: fmt.Sprintf("Undefined variable: '%s'.", name.lexeme)}
+	return nil, RuntimeError{token: name, message: fmt.Sprintf("Undefined variable '%s'.", name.lexeme)}
 }
 
 func (e *Environment) getAt(distance int, name string) any {

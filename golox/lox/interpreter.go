@@ -75,7 +75,7 @@ func (i *Interpreter) VisitPrintStmt(stmt PrintStmt) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(value)
+	fmt.Println(stringify(value))
 	return nil
 }
 
@@ -273,6 +273,8 @@ func (i *Interpreter) VisitUnaryExpr(expr *UnaryExpr) (any, error) {
 			return nil, err
 		}
 		return -num, nil
+	case TOKEN_BANG:
+		return !isTruthy(right), nil
 
 	// If we end up here, we have a parser error
 	default:
@@ -307,6 +309,13 @@ func (i *Interpreter) lookUpVariable(name Token, expr Expr) (any, error) {
 		return i.globals.get(name)
 	}
 	return i.environment.getAt(distance, name.lexeme), nil
+}
+
+func stringify(value any) string {
+	if value == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", value)
 }
 
 func checkNumberOperand(operator Token, value any) (float64, error) {

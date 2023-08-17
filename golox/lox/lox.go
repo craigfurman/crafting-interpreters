@@ -75,7 +75,7 @@ func (e RuntimeError) Error() string {
 }
 
 func reportRuntimeError(err RuntimeError) {
-	fmt.Fprintf(os.Stderr, "%s \n[line %d]", err.message, err.token.line)
+	fmt.Fprintf(os.Stderr, "%s\n[line %d]\n", err.message, err.token.line)
 	hadRuntimeError = true
 }
 
