@@ -44,6 +44,18 @@ func (i *Interpreter) VisitBlockStmt(stmt BlockStmt) error {
 	return i.executeBlock(stmt.statements, newEnvironment(i.environment))
 }
 
+func (i *Interpreter) VisitClassStmt(stmt ClassStmt) error {
+	i.environment.define(stmt.name.lexeme, nil)
+
+	methods := map[string]*LoxFunction{}
+	for _, method := range stmt.methods {
+		methods[method.name.lexeme] = &LoxFunction{declaration: method, closure: i.environment}
+	}
+
+	class := &LoxClass{name: stmt.name.lexeme, methods: methods}
+	return i.environment.assign(stmt.name, class)
+}
+
 // Expressions might have side effects. We evaluate it and discard the value in
 // these statements.
 func (i *Interpreter) VisitExprStmt(stmt ExprStmt) error {
@@ -236,6 +248,19 @@ func (i *Interpreter) VisitCallExpr(expr *CallExpr) (any, error) {
 	return fn.Call(i, args)
 }
 
+func (i *Interpreter) VisitGetExpr(expr *GetExpr) (any, error) {
+	obj, err := i.evaluate(expr.obj)
+	if err != nil {
+		return nil, err
+	}
+	switch instance := obj.(type) {
+	case *LoxInstance:
+		return instance.get(expr.name)
+	default:
+		return nil, RuntimeError{token: expr.name, message: "Only instances have properties."}
+	}
+}
+
 func (i *Interpreter) VisitGroupingExpr(expr *GroupingExpr) (any, error) {
 	return i.evaluate(expr.expr)
 }
@@ -259,6 +284,28 @@ func (i *Interpreter) VisitLogicalExpr(expr *LogicalExpr) (any, error) {
 		}
 	}
 	return i.evaluate(expr.right)
+}
+
+func (i *Interpreter) VisitSetExpr(expr *SetExpr) (any, error) {
+	obj, err := i.evaluate(expr.obj)
+	if err != nil {
+		return nil, err
+	}
+	value, err := i.evaluate(expr.value)
+	if err != nil {
+		return nil, err
+	}
+	switch instance := obj.(type) {
+	case *LoxInstance:
+		instance.set(expr.name, value)
+		return nil, nil
+	default:
+		return nil, RuntimeError{token: expr.name, message: "Only instances have fields."}
+	}
+}
+
+func (i *Interpreter) VisitThisExpr(expr *ThisExpr) (any, error) {
+	return i.lookUpVariable(expr.keyword, expr)
 }
 
 func (i *Interpreter) VisitUnaryExpr(expr *UnaryExpr) (any, error) {

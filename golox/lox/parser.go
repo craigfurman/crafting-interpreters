@@ -35,6 +35,9 @@ func (p *parser) parse() []Stmt {
 // statements
 
 func (p *parser) declaration() (Stmt, error) {
+	if p.match(TOKEN_CLASS) {
+		return p.classDecl()
+	}
 	if p.match(TOKEN_VAR) {
 		return p.varDecl()
 	}
@@ -42,6 +45,31 @@ func (p *parser) declaration() (Stmt, error) {
 		return p.function("function")
 	}
 	return p.statement()
+}
+
+func (p *parser) classDecl() (Stmt, error) {
+	name, err := p.consume(TOKEN_IDENTIFIER, "Expect class name.")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.consume(TOKEN_LEFT_BRACE, "Expect '{' before class body."); err != nil {
+		return nil, err
+	}
+
+	var methods []FuncStmt
+	for !p.currentIs(TOKEN_RIGHT_BRACE) && !p.isAtEnd() {
+		// No "fun" keyword on methods
+		method, err := p.function("method")
+		if err != nil {
+			return nil, err
+		}
+		methods = append(methods, method)
+	}
+	if _, err := p.consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body."); err != nil {
+		return nil, err
+	}
+
+	return ClassStmt{name: name, methods: methods}, nil
 }
 
 func (p *parser) varDecl() (Stmt, error) {
@@ -62,35 +90,35 @@ func (p *parser) varDecl() (Stmt, error) {
 	return VarStmt{name: name, initializer: initializer}, nil
 }
 
-func (p *parser) function(fnKind string) (Stmt, error) {
+func (p *parser) function(fnKind string) (FuncStmt, error) {
 	name, err := p.consume(TOKEN_IDENTIFIER, fmt.Sprintf("Expect %s name.", fnKind))
 	if err != nil {
-		return nil, err
+		return FuncStmt{}, err
 	}
 
 	if _, err := p.consume(TOKEN_LEFT_PAREN, fmt.Sprintf("Expect '(' after %s name.", fnKind)); err != nil {
-		return nil, err
+		return FuncStmt{}, err
 	}
 	var params []Token
 	if !p.currentIs(TOKEN_RIGHT_PAREN) {
 		for do := true; do; do = p.match(TOKEN_COMMA) {
 			param, err := p.consume(TOKEN_IDENTIFIER, "Expect parameter name.")
 			if err != nil {
-				return nil, err
+				return FuncStmt{}, err
 			}
 			params = append(params, param)
 		}
 	}
 	if _, err := p.consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters."); err != nil {
-		return nil, err
+		return FuncStmt{}, err
 	}
 
 	if _, err := p.consume(TOKEN_LEFT_BRACE, fmt.Sprintf("Expect '{' before %s body.", fnKind)); err != nil {
-		return nil, err
+		return FuncStmt{}, err
 	}
 	body, err := p.block()
 	if err != nil {
-		return nil, err
+		return FuncStmt{}, err
 	}
 
 	return FuncStmt{name: name, params: params, body: body}, nil
@@ -319,9 +347,11 @@ func (p *parser) assignment() (Expr, error) {
 			return nil, err
 		}
 
-		switch tkn := expr.(type) {
+		switch target := expr.(type) {
 		case *VarExpr:
-			return &AssignExpr{name: tkn.name, expr: newValue}, nil
+			return &AssignExpr{name: target.name, expr: newValue}, nil
+		case *GetExpr:
+			return &SetExpr{name: target.name, obj: target.obj, value: newValue}, nil
 		default:
 			// Don't return an error here, for reasons I don't actually know
 			tokenError(equals, "Invalid assignment target.")
@@ -392,6 +422,12 @@ func (p *parser) callExpression() (Expr, error) {
 			if err != nil {
 				return nil, err
 			}
+		} else if p.match(TOKEN_DOT) {
+			name, err := p.consume(TOKEN_IDENTIFIER, "Expect property name after '.'.")
+			if err != nil {
+				return nil, err
+			}
+			expr = &GetExpr{obj: expr, name: name}
 		} else {
 			break
 		}
@@ -415,6 +451,9 @@ func (p *parser) primaryExpression() (Expr, error) {
 	}
 	if p.match(TOKEN_IDENTIFIER) {
 		return &VarExpr{p.previous()}, nil
+	}
+	if p.match(TOKEN_THIS) {
+		return &ThisExpr{p.previous()}, nil
 	}
 	if p.match(TOKEN_LEFT_PAREN) {
 		expr, err := p.expression()

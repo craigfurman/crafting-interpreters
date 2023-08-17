@@ -8,6 +8,12 @@ type BlockStmt struct {
 	statements []Stmt
 }
 
+type ClassStmt struct {
+	name       Token
+	superclass VarExpr
+	methods    []FuncStmt
+}
+
 type ExprStmt struct {
 	expr Expr
 }
@@ -44,6 +50,7 @@ type WhileStmt struct {
 
 type StmtVisitor interface {
 	VisitBlockStmt(stmt BlockStmt) error
+	VisitClassStmt(stmt ClassStmt) error
 	VisitExprStmt(stmt ExprStmt) error
 	VisitFuncStmt(stmt FuncStmt) error
 	VisitIfStmt(stmt IfStmt) error
@@ -54,6 +61,7 @@ type StmtVisitor interface {
 }
 
 func (s BlockStmt) Accept(visitor StmtVisitor) error  { return visitor.VisitBlockStmt(s) }
+func (s ClassStmt) Accept(visitor StmtVisitor) error  { return visitor.VisitClassStmt(s) }
 func (s ExprStmt) Accept(visitor StmtVisitor) error   { return visitor.VisitExprStmt(s) }
 func (s FuncStmt) Accept(visitor StmtVisitor) error   { return visitor.VisitFuncStmt(s) }
 func (s IfStmt) Accept(visitor StmtVisitor) error     { return visitor.VisitIfStmt(s) }

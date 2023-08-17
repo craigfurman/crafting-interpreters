@@ -1,5 +1,7 @@
 package lox
 
+import "fmt"
+
 type LoxCallable interface {
 	Arity() int
 	Call(interpreter *Interpreter, arguments []any) (any, error)
@@ -27,4 +29,14 @@ func (f *LoxFunction) Call(interpreter *Interpreter, arguments []any) (any, erro
 		return nil, err
 	}
 	return nil, nil
+}
+
+func (f *LoxFunction) bind(instance *LoxInstance) *LoxFunction {
+	env := newEnvironment(f.closure)
+	env.define("this", instance)
+	return &LoxFunction{declaration: f.declaration, closure: env}
+}
+
+func (f LoxFunction) String() string {
+	return fmt.Sprintf("<fn %s>", f.declaration.name.lexeme)
 }

@@ -16,16 +16,17 @@ const (
 
 type Resolver struct {
 	interpreter     *Interpreter
-	scopes          Stack[map[string]bool]
+	scopes          *Stack[map[string]bool]
 	currentFunction FunctionType
-	currentClasss   ClassType
+	currentClass    ClassType
 }
 
 func NewResolver(interpreter *Interpreter) *Resolver {
 	return &Resolver{
 		interpreter:     interpreter,
+		scopes:          &Stack[map[string]bool]{},
 		currentFunction: FuncTypeNone,
-		currentClasss:   ClassTypeNone,
+		currentClass:    ClassTypeNone,
 	}
 }
 
@@ -60,6 +61,10 @@ func (r *Resolver) VisitCallExpr(expr *CallExpr) (any, error) {
 	return nil, nil
 }
 
+func (r *Resolver) VisitGetExpr(expr *GetExpr) (any, error) {
+	return expr.obj.Accept(r)
+}
+
 func (r *Resolver) VisitGroupingExpr(expr *GroupingExpr) (any, error) {
 	return expr.expr.Accept(r)
 }
@@ -73,6 +78,20 @@ func (r *Resolver) VisitLogicalExpr(expr *LogicalExpr) (any, error) {
 	must(err)
 	_, err = expr.right.Accept(r)
 	must(err)
+	return nil, nil
+}
+
+func (r *Resolver) VisitSetExpr(expr *SetExpr) (any, error) {
+	_, err := expr.obj.Accept(r)
+	must(err)
+	return expr.value.Accept(r)
+}
+
+func (r *Resolver) VisitThisExpr(expr *ThisExpr) (any, error) {
+	if r.currentClass == ClassTypeNone {
+		tokenError(expr.keyword, "Can't use 'this' outside of a class.")
+	}
+	r.resolveLocal(expr, expr.keyword)
 	return nil, nil
 }
 
@@ -96,6 +115,27 @@ func (r *Resolver) VisitBlockStmt(stmt BlockStmt) error {
 	r.beginScope()
 	r.resolve(stmt.statements)
 	r.endScope()
+	return nil
+}
+
+func (r *Resolver) VisitClassStmt(stmt ClassStmt) error {
+	enclosing := r.currentClass
+	r.currentClass = ClassTypeClass
+
+	r.declare(stmt.name)
+	r.define(stmt.name)
+
+	r.beginScope()
+	r.scopes.Peek()["this"] = true
+
+	for _, method := range stmt.methods {
+		kind := FuncTypeMethod
+		r.resolveFunction(method, kind)
+	}
+
+	r.endScope()
+
+	r.currentClass = enclosing
 	return nil
 }
 
