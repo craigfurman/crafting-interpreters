@@ -324,7 +324,7 @@ func (p *parser) assignment() (Expr, error) {
 			return AssignExpr{name: tkn.name, expr: newValue}, nil
 		default:
 			// Don't return an error here, for reasons I don't actually know
-			reportRuntimeError(RuntimeError{token: equals, message: "Invalid assignment target."})
+			tokenError(equals, "Invalid assignment target.")
 		}
 	}
 
