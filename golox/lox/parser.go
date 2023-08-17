@@ -97,6 +97,9 @@ func (p *parser) function(fnKind string) (Stmt, error) {
 }
 
 func (p *parser) statement() (Stmt, error) {
+	if p.match(TOKEN_FOR) {
+		return p.forStmt()
+	}
 	if p.match(TOKEN_IF) {
 		return p.ifStmt()
 	}
@@ -128,6 +131,87 @@ func (p *parser) exprStmt() (Stmt, error) {
 		return nil, err
 	}
 	return ExprStmt{expr}, nil
+}
+
+// Desugar for loops:
+//
+// for (var a = 0; a < 10; a = a + 1) print a;
+//
+// ->
+//
+//	{
+//		var a = 0;
+//		while (a < 10) {
+//			print a;
+//			a = a + 1;
+//		}
+//	}
+//
+// The initializer statement, condition expression, and increment expression are
+// all optional. The condition defaults to true if absent.
+func (p *parser) forStmt() (Stmt, error) {
+	if _, err := p.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'."); err != nil {
+		return nil, err
+	}
+
+	var initializer Stmt
+	if !p.match(TOKEN_SEMICOLON) {
+		var err error
+		if p.match(TOKEN_VAR) {
+			initializer, err = p.varDecl()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			initializer, err = p.exprStmt()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	var condition Expr = LiteralExpr{true}
+	if !p.currentIs(TOKEN_SEMICOLON) {
+		var err error
+		condition, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after loop condition."); err != nil {
+		return nil, err
+	}
+
+	var increment Expr
+	if !p.currentIs(TOKEN_RIGHT_PAREN) {
+		var err error
+		increment, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err := p.consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses."); err != nil {
+		return nil, err
+	}
+
+	body, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the desugared statement
+	if increment != nil {
+		body = BlockStmt{[]Stmt{
+			body,
+			ExprStmt{increment},
+		}}
+	}
+	body = WhileStmt{condition: condition, body: body}
+	if initializer != nil {
+		body = BlockStmt{[]Stmt{initializer, body}}
+	}
+	return body, nil
 }
 
 func (p *parser) ifStmt() (Stmt, error) {
