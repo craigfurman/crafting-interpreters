@@ -7,8 +7,10 @@ type Interpreter struct {
 }
 
 func newInterpreter() *Interpreter {
+	env := newEnvironment(nil)
+	env.define("clock", NativeFnClock{})
 	return &Interpreter{
-		environment: newEnvironment(nil),
+		environment: env,
 	}
 }
 
