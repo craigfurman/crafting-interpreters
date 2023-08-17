@@ -130,6 +130,9 @@ func (r *Resolver) VisitClassStmt(stmt ClassStmt) error {
 
 	for _, method := range stmt.methods {
 		kind := FuncTypeMethod
+		if method.name.lexeme == "init" {
+			kind = FuncTypeInit
+		}
 		r.resolveFunction(method, kind)
 	}
 
@@ -171,6 +174,9 @@ func (r *Resolver) VisitReturnStmt(stmt ReturnStmt) error {
 		tokenError(stmt.keyword, "Can't return from top-level code.")
 	}
 	if stmt.value != nil {
+		if r.currentFunction == FuncTypeInit {
+			tokenError(stmt.keyword, "Can't return a value from an initializer.")
+		}
 		_, err := stmt.value.Accept(r)
 		must(err)
 	}

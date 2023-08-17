@@ -49,7 +49,7 @@ func (i *Interpreter) VisitClassStmt(stmt ClassStmt) error {
 
 	methods := map[string]*LoxFunction{}
 	for _, method := range stmt.methods {
-		methods[method.name.lexeme] = &LoxFunction{declaration: method, closure: i.environment}
+		methods[method.name.lexeme] = &LoxFunction{declaration: method, closure: i.environment, isInitializer: method.name.lexeme == "init"}
 	}
 
 	class := &LoxClass{name: stmt.name.lexeme, methods: methods}

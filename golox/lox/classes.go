@@ -8,12 +8,26 @@ type LoxClass struct {
 	methods    map[string]*LoxFunction
 }
 
-func (LoxClass) Arity() int {
+func (c *LoxClass) Arity() int {
+	init := c.findMethod("init")
+	if init != nil {
+		return init.Arity()
+	}
 	return 0
 }
 
 func (c *LoxClass) Call(interpreter *Interpreter, arguments []any) (any, error) {
 	instance := &LoxInstance{class: c, fields: map[string]any{}}
+
+	// run initializer
+	if init := c.findMethod("init"); init != nil {
+		// initializers can't return values
+		_, err := init.bind(instance).Call(interpreter, arguments)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return instance, nil
 }
 

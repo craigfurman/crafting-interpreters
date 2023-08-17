@@ -8,8 +8,9 @@ type LoxCallable interface {
 }
 
 type LoxFunction struct {
-	declaration FuncStmt
-	closure     *Environment
+	declaration   FuncStmt
+	closure       *Environment
+	isInitializer bool
 }
 
 func (f LoxFunction) Arity() int {
@@ -24,6 +25,13 @@ func (f *LoxFunction) Call(interpreter *Interpreter, arguments []any) (any, erro
 	err := interpreter.executeBlock(f.declaration.body, env)
 	if err != nil {
 		if returnVal, ok := err.(Return); ok {
+			// Initializers are special in that they always return their "this"
+			// instance. The resolver has already ensured that no explicit return
+			// values are allowed in initializers.
+			if f.isInitializer {
+				return f.closure.getAt(0, "this"), nil
+			}
+
 			return returnVal.value, nil
 		}
 		return nil, err
