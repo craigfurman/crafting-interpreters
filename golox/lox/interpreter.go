@@ -3,14 +3,18 @@ package lox
 import "fmt"
 
 type Interpreter struct {
+	globals     *Environment
 	environment *Environment
+	locals      IdentityMap[int]
 }
 
 func newInterpreter() *Interpreter {
 	env := newEnvironment(nil)
 	env.define("clock", NativeFnClock{})
 	return &Interpreter{
+		globals:     env,
 		environment: env,
+		locals:      NewIdentityMap[int](),
 	}
 }
 
@@ -117,15 +121,20 @@ func (i *Interpreter) VisitWhileStmt(stmt WhileStmt) error {
 	}
 }
 
-func (i *Interpreter) VisitAssignExpr(expr AssignExpr) (any, error) {
+func (i *Interpreter) VisitAssignExpr(expr *AssignExpr) (any, error) {
 	value, err := i.evaluate(expr.expr)
 	if err != nil {
 		return nil, err
 	}
-	return value, i.environment.assign(expr.name, value)
+	distance, ok := i.locals.Get(expr)
+	if !ok {
+		return value, i.globals.assign(expr.name, value)
+	}
+	i.environment.assignAt(distance, expr.name, value)
+	return value, nil
 }
 
-func (i *Interpreter) VisitBinaryExpr(expr BinaryExpr) (any, error) {
+func (i *Interpreter) VisitBinaryExpr(expr *BinaryExpr) (any, error) {
 	left, err := i.evaluate(expr.left)
 	if err != nil {
 		return nil, err
@@ -201,7 +210,7 @@ func (i *Interpreter) VisitBinaryExpr(expr BinaryExpr) (any, error) {
 	}
 }
 
-func (i *Interpreter) VisitCallExpr(expr CallExpr) (any, error) {
+func (i *Interpreter) VisitCallExpr(expr *CallExpr) (any, error) {
 	callee, err := i.evaluate(expr.callee)
 	if err != nil {
 		return nil, err
@@ -227,15 +236,15 @@ func (i *Interpreter) VisitCallExpr(expr CallExpr) (any, error) {
 	return fn.Call(i, args)
 }
 
-func (i *Interpreter) VisitGroupingExpr(expr GroupingExpr) (any, error) {
+func (i *Interpreter) VisitGroupingExpr(expr *GroupingExpr) (any, error) {
 	return i.evaluate(expr.expr)
 }
 
-func (i *Interpreter) VisitLiteralExpr(expr LiteralExpr) (any, error) {
+func (i *Interpreter) VisitLiteralExpr(expr *LiteralExpr) (any, error) {
 	return expr.value, nil
 }
 
-func (i *Interpreter) VisitLogicalExpr(expr LogicalExpr) (any, error) {
+func (i *Interpreter) VisitLogicalExpr(expr *LogicalExpr) (any, error) {
 	left, err := i.evaluate(expr.left)
 	if err != nil {
 		return nil, err
@@ -252,7 +261,7 @@ func (i *Interpreter) VisitLogicalExpr(expr LogicalExpr) (any, error) {
 	return i.evaluate(expr.right)
 }
 
-func (i *Interpreter) VisitUnaryExpr(expr UnaryExpr) (any, error) {
+func (i *Interpreter) VisitUnaryExpr(expr *UnaryExpr) (any, error) {
 	right, err := i.evaluate(expr.right)
 	if err != nil {
 		return nil, err
@@ -271,8 +280,8 @@ func (i *Interpreter) VisitUnaryExpr(expr UnaryExpr) (any, error) {
 	}
 }
 
-func (i *Interpreter) VisitVarExpr(expr VarExpr) (any, error) {
-	return i.environment.get(expr.name)
+func (i *Interpreter) VisitVarExpr(expr *VarExpr) (any, error) {
+	return i.lookUpVariable(expr.name, expr)
 }
 
 func (i *Interpreter) executeBlock(stmts []Stmt, env *Environment) error {
@@ -286,6 +295,18 @@ func (i *Interpreter) executeBlock(stmts []Stmt, env *Environment) error {
 		}
 	}
 	return nil
+}
+
+func (i *Interpreter) resolve(expr Expr, depth int) {
+	i.locals.Put(expr, depth)
+}
+
+func (i *Interpreter) lookUpVariable(name Token, expr Expr) (any, error) {
+	distance, ok := i.locals.Get(expr)
+	if !ok {
+		return i.globals.get(name)
+	}
+	return i.environment.getAt(distance, name.lexeme), nil
 }
 
 func checkNumberOperand(operator Token, value any) (float64, error) {

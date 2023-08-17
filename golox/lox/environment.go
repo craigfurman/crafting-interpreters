@@ -26,6 +26,10 @@ func (e *Environment) assign(name Token, value any) error {
 	return RuntimeError{token: name, message: fmt.Sprintf("Undefined variable: '%s'.", name.lexeme)}
 }
 
+func (e *Environment) assignAt(distance int, name Token, value any) {
+	e.ancestor(distance).values[name.lexeme] = value
+}
+
 func (e *Environment) get(name Token) (any, error) {
 	if val, ok := e.values[name.lexeme]; ok {
 		return val, nil
@@ -34,4 +38,16 @@ func (e *Environment) get(name Token) (any, error) {
 		return e.enclosing.get(name)
 	}
 	return nil, RuntimeError{token: name, message: fmt.Sprintf("Undefined variable: '%s'.", name.lexeme)}
+}
+
+func (e *Environment) getAt(distance int, name string) any {
+	return e.ancestor(distance).values[name]
+}
+
+func (e *Environment) ancestor(distance int) *Environment {
+	env := e
+	for i := 0; i < distance; i++ {
+		env = env.enclosing
+	}
+	return env
 }

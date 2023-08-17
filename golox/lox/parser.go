@@ -170,7 +170,7 @@ func (p *parser) forStmt() (Stmt, error) {
 		}
 	}
 
-	var condition Expr = LiteralExpr{true}
+	var condition Expr = &LiteralExpr{true}
 	if !p.currentIs(TOKEN_SEMICOLON) {
 		var err error
 		condition, err = p.expression()
@@ -320,8 +320,8 @@ func (p *parser) assignment() (Expr, error) {
 		}
 
 		switch tkn := expr.(type) {
-		case VarExpr:
-			return AssignExpr{name: tkn.name, expr: newValue}, nil
+		case *VarExpr:
+			return &AssignExpr{name: tkn.name, expr: newValue}, nil
 		default:
 			// Don't return an error here, for reasons I don't actually know
 			tokenError(equals, "Invalid assignment target.")
@@ -333,37 +333,37 @@ func (p *parser) assignment() (Expr, error) {
 
 func (p *parser) or() (Expr, error) {
 	return p.parseLeftAssociativeBinaryExprs(p.and, func(left, right Expr, op Token) Expr {
-		return LogicalExpr{left: left, operator: op, right: right}
+		return &LogicalExpr{left: left, operator: op, right: right}
 	}, TOKEN_OR)
 }
 
 func (p *parser) and() (Expr, error) {
 	return p.parseLeftAssociativeBinaryExprs(p.equality, func(left, right Expr, op Token) Expr {
-		return LogicalExpr{left: left, operator: op, right: right}
+		return &LogicalExpr{left: left, operator: op, right: right}
 	}, TOKEN_AND)
 }
 
 func (p *parser) equality() (Expr, error) {
 	return p.parseLeftAssociativeBinaryExprs(p.comparison, func(left, right Expr, op Token) Expr {
-		return BinaryExpr{left: left, operator: op, right: right}
+		return &BinaryExpr{left: left, operator: op, right: right}
 	}, TOKEN_EQUAL_EQUAL, TOKEN_BANG_EQUAL)
 }
 
 func (p *parser) comparison() (Expr, error) {
 	return p.parseLeftAssociativeBinaryExprs(p.termExpression, func(left, right Expr, op Token) Expr {
-		return BinaryExpr{left: left, operator: op, right: right}
+		return &BinaryExpr{left: left, operator: op, right: right}
 	}, TOKEN_GREATER, TOKEN_GREATER_EQUAL, TOKEN_LESS, TOKEN_LESS_EQUAL)
 }
 
 func (p *parser) termExpression() (Expr, error) {
 	return p.parseLeftAssociativeBinaryExprs(p.factorExpression, func(left, right Expr, op Token) Expr {
-		return BinaryExpr{left: left, operator: op, right: right}
+		return &BinaryExpr{left: left, operator: op, right: right}
 	}, TOKEN_PLUS, TOKEN_MINUS)
 }
 
 func (p *parser) factorExpression() (Expr, error) {
 	return p.parseLeftAssociativeBinaryExprs(p.unaryExpression, func(left, right Expr, op Token) Expr {
-		return BinaryExpr{left: left, operator: op, right: right}
+		return &BinaryExpr{left: left, operator: op, right: right}
 	}, TOKEN_STAR, TOKEN_SLASH)
 }
 
@@ -374,7 +374,7 @@ func (p *parser) unaryExpression() (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return UnaryExpr{operator: op, right: right}, nil
+		return &UnaryExpr{operator: op, right: right}, nil
 	}
 	return p.callExpression()
 }
@@ -402,19 +402,19 @@ func (p *parser) callExpression() (Expr, error) {
 
 func (p *parser) primaryExpression() (Expr, error) {
 	if p.match(TOKEN_FALSE) {
-		return LiteralExpr{false}, nil
+		return &LiteralExpr{false}, nil
 	}
 	if p.match(TOKEN_TRUE) {
-		return LiteralExpr{true}, nil
+		return &LiteralExpr{true}, nil
 	}
 	if p.match(TOKEN_NIL) {
-		return LiteralExpr{nil}, nil
+		return &LiteralExpr{nil}, nil
 	}
 	if p.match(TOKEN_NUMBER, TOKEN_STRING) {
-		return LiteralExpr{p.previous().literal}, nil
+		return &LiteralExpr{p.previous().literal}, nil
 	}
 	if p.match(TOKEN_IDENTIFIER) {
-		return VarExpr{p.previous()}, nil
+		return &VarExpr{p.previous()}, nil
 	}
 	if p.match(TOKEN_LEFT_PAREN) {
 		expr, err := p.expression()
@@ -424,7 +424,7 @@ func (p *parser) primaryExpression() (Expr, error) {
 		if _, err := p.consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression."); err != nil {
 			return nil, err
 		}
-		return GroupingExpr{expr}, nil
+		return &GroupingExpr{expr}, nil
 	}
 
 	tokenError(p.peek(), "Expect expression.")
@@ -449,7 +449,7 @@ func (p *parser) finishCall(callee Expr) (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return CallExpr{callee: callee, paren: paren, arguments: args}, nil
+	return &CallExpr{callee: callee, paren: paren, arguments: args}, nil
 }
 
 func (p *parser) parseLeftAssociativeBinaryExprs(

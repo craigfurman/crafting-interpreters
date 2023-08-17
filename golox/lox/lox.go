@@ -10,6 +10,7 @@ var (
 	hadError        = false
 	hadRuntimeError = false
 	interpreter     = newInterpreter()
+	resolver        = NewResolver(interpreter)
 )
 
 func REPL() {
@@ -40,6 +41,10 @@ func RunFile(path string) int {
 func runSource(source string) {
 	tokens := scan(source)
 	statements := parse(tokens)
+	if hadError {
+		return
+	}
+	resolver.resolve(statements)
 	if hadError {
 		return
 	}
