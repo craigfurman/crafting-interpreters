@@ -111,14 +111,14 @@ func (r *Resolver) VisitVarExpr(expr *VarExpr) (any, error) {
 	return nil, nil
 }
 
-func (r *Resolver) VisitBlockStmt(stmt BlockStmt) error {
+func (r *Resolver) VisitBlockStmt(stmt *BlockStmt) error {
 	r.beginScope()
 	r.resolve(stmt.statements)
 	r.endScope()
 	return nil
 }
 
-func (r *Resolver) VisitClassStmt(stmt ClassStmt) error {
+func (r *Resolver) VisitClassStmt(stmt *ClassStmt) error {
 	enclosing := r.currentClass
 	r.currentClass = ClassTypeClass
 
@@ -142,19 +142,19 @@ func (r *Resolver) VisitClassStmt(stmt ClassStmt) error {
 	return nil
 }
 
-func (r *Resolver) VisitExprStmt(stmt ExprStmt) error {
+func (r *Resolver) VisitExprStmt(stmt *ExprStmt) error {
 	_, err := stmt.expr.Accept(r)
 	return err
 }
 
-func (r *Resolver) VisitFuncStmt(stmt FuncStmt) error {
+func (r *Resolver) VisitFuncStmt(stmt *FuncStmt) error {
 	r.declare(stmt.name)
 	r.define(stmt.name)
 	r.resolveFunction(stmt, FuncTypeFunc)
 	return nil
 }
 
-func (r *Resolver) VisitIfStmt(stmt IfStmt) error {
+func (r *Resolver) VisitIfStmt(stmt *IfStmt) error {
 	_, err := stmt.condition.Accept(r)
 	must(err)
 	must(stmt.thenBr.Accept(r))
@@ -164,12 +164,12 @@ func (r *Resolver) VisitIfStmt(stmt IfStmt) error {
 	return nil
 }
 
-func (r *Resolver) VisitPrintStmt(stmt PrintStmt) error {
+func (r *Resolver) VisitPrintStmt(stmt *PrintStmt) error {
 	_, err := stmt.expr.Accept(r)
 	return err
 }
 
-func (r *Resolver) VisitReturnStmt(stmt ReturnStmt) error {
+func (r *Resolver) VisitReturnStmt(stmt *ReturnStmt) error {
 	if r.currentFunction == FuncTypeNone {
 		tokenError(stmt.keyword, "Can't return from top-level code.")
 	}
@@ -183,7 +183,7 @@ func (r *Resolver) VisitReturnStmt(stmt ReturnStmt) error {
 	return nil
 }
 
-func (r *Resolver) VisitVarStmt(stmt VarStmt) error {
+func (r *Resolver) VisitVarStmt(stmt *VarStmt) error {
 	r.declare(stmt.name)
 	if stmt.initializer != nil {
 		_, err := stmt.initializer.Accept(r)
@@ -193,7 +193,7 @@ func (r *Resolver) VisitVarStmt(stmt VarStmt) error {
 	return nil
 }
 
-func (r *Resolver) VisitWhileStmt(stmt WhileStmt) error {
+func (r *Resolver) VisitWhileStmt(stmt *WhileStmt) error {
 	_, err := stmt.condition.Accept(r)
 	must(err)
 	return stmt.body.Accept(r)
@@ -237,7 +237,7 @@ func (r *Resolver) resolveLocal(expr Expr, name Token) {
 	}
 }
 
-func (r *Resolver) resolveFunction(fn FuncStmt, kind FunctionType) {
+func (r *Resolver) resolveFunction(fn *FuncStmt, kind FunctionType) {
 	enclosing := r.currentFunction
 	r.currentFunction = kind
 

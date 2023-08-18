@@ -56,7 +56,7 @@ func (p *parser) classDecl() (Stmt, error) {
 		return nil, err
 	}
 
-	var methods []FuncStmt
+	var methods []*FuncStmt
 	for !p.currentIs(TOKEN_RIGHT_BRACE) && !p.isAtEnd() {
 		// No "fun" keyword on methods
 		method, err := p.function("method")
@@ -69,7 +69,7 @@ func (p *parser) classDecl() (Stmt, error) {
 		return nil, err
 	}
 
-	return ClassStmt{name: name, methods: methods}, nil
+	return &ClassStmt{name: name, methods: methods}, nil
 }
 
 func (p *parser) varDecl() (Stmt, error) {
@@ -87,41 +87,41 @@ func (p *parser) varDecl() (Stmt, error) {
 	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration."); err != nil {
 		return nil, err
 	}
-	return VarStmt{name: name, initializer: initializer}, nil
+	return &VarStmt{name: name, initializer: initializer}, nil
 }
 
-func (p *parser) function(fnKind string) (FuncStmt, error) {
+func (p *parser) function(fnKind string) (*FuncStmt, error) {
 	name, err := p.consume(TOKEN_IDENTIFIER, fmt.Sprintf("Expect %s name.", fnKind))
 	if err != nil {
-		return FuncStmt{}, err
+		return nil, err
 	}
 
 	if _, err := p.consume(TOKEN_LEFT_PAREN, fmt.Sprintf("Expect '(' after %s name.", fnKind)); err != nil {
-		return FuncStmt{}, err
+		return nil, err
 	}
 	var params []Token
 	if !p.currentIs(TOKEN_RIGHT_PAREN) {
 		for do := true; do; do = p.match(TOKEN_COMMA) {
 			param, err := p.consume(TOKEN_IDENTIFIER, "Expect parameter name.")
 			if err != nil {
-				return FuncStmt{}, err
+				return nil, err
 			}
 			params = append(params, param)
 		}
 	}
 	if _, err := p.consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters."); err != nil {
-		return FuncStmt{}, err
+		return nil, err
 	}
 
 	if _, err := p.consume(TOKEN_LEFT_BRACE, fmt.Sprintf("Expect '{' before %s body.", fnKind)); err != nil {
-		return FuncStmt{}, err
+		return nil, err
 	}
 	body, err := p.block()
 	if err != nil {
-		return FuncStmt{}, err
+		return nil, err
 	}
 
-	return FuncStmt{name: name, params: params, body: body}, nil
+	return &FuncStmt{name: name, params: params, body: body}, nil
 }
 
 func (p *parser) statement() (Stmt, error) {
@@ -145,7 +145,7 @@ func (p *parser) statement() (Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		return BlockStmt{stmts}, nil
+		return &BlockStmt{stmts}, nil
 	}
 	return p.exprStmt()
 }
@@ -158,7 +158,7 @@ func (p *parser) exprStmt() (Stmt, error) {
 	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after expression."); err != nil {
 		return nil, err
 	}
-	return ExprStmt{expr}, nil
+	return &ExprStmt{expr}, nil
 }
 
 // Desugar for loops:
@@ -230,14 +230,14 @@ func (p *parser) forStmt() (Stmt, error) {
 
 	// Build the desugared statement
 	if increment != nil {
-		body = BlockStmt{[]Stmt{
+		body = &BlockStmt{[]Stmt{
 			body,
-			ExprStmt{increment},
+			&ExprStmt{increment},
 		}}
 	}
-	body = WhileStmt{condition: condition, body: body}
+	body = &WhileStmt{condition: condition, body: body}
 	if initializer != nil {
-		body = BlockStmt{[]Stmt{initializer, body}}
+		body = &BlockStmt{[]Stmt{initializer, body}}
 	}
 	return body, nil
 }
@@ -265,7 +265,7 @@ func (p *parser) ifStmt() (Stmt, error) {
 			return nil, err
 		}
 	}
-	return IfStmt{condition: condition, thenBr: thenBr, elseBr: elseBr}, nil
+	return &IfStmt{condition: condition, thenBr: thenBr, elseBr: elseBr}, nil
 }
 
 func (p *parser) printStmt() (Stmt, error) {
@@ -276,7 +276,7 @@ func (p *parser) printStmt() (Stmt, error) {
 	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after expression."); err != nil {
 		return nil, err
 	}
-	return PrintStmt{value}, nil
+	return &PrintStmt{value}, nil
 }
 
 func (p *parser) returnStmt() (Stmt, error) {
@@ -292,7 +292,7 @@ func (p *parser) returnStmt() (Stmt, error) {
 	if _, err := p.consume(TOKEN_SEMICOLON, "Expect ';' after return value."); err != nil {
 		return nil, err
 	}
-	return ReturnStmt{keyword: keyword, value: value}, nil
+	return &ReturnStmt{keyword: keyword, value: value}, nil
 }
 
 func (p *parser) whileStmt() (Stmt, error) {
@@ -310,7 +310,7 @@ func (p *parser) whileStmt() (Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return WhileStmt{condition: cond, body: body}, nil
+	return &WhileStmt{condition: cond, body: body}, nil
 }
 
 func (p *parser) block() ([]Stmt, error) {

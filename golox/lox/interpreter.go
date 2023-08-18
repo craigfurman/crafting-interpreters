@@ -40,11 +40,11 @@ func (i *Interpreter) evaluate(expr Expr) (any, error) {
 	return expr.Accept(i)
 }
 
-func (i *Interpreter) VisitBlockStmt(stmt BlockStmt) error {
+func (i *Interpreter) VisitBlockStmt(stmt *BlockStmt) error {
 	return i.executeBlock(stmt.statements, newEnvironment(i.environment))
 }
 
-func (i *Interpreter) VisitClassStmt(stmt ClassStmt) error {
+func (i *Interpreter) VisitClassStmt(stmt *ClassStmt) error {
 	i.environment.define(stmt.name.lexeme, nil)
 
 	methods := map[string]*LoxFunction{}
@@ -58,18 +58,18 @@ func (i *Interpreter) VisitClassStmt(stmt ClassStmt) error {
 
 // Expressions might have side effects. We evaluate it and discard the value in
 // these statements.
-func (i *Interpreter) VisitExprStmt(stmt ExprStmt) error {
+func (i *Interpreter) VisitExprStmt(stmt *ExprStmt) error {
 	_, err := i.evaluate(stmt.expr)
 	return err
 }
 
-func (i *Interpreter) VisitFuncStmt(stmt FuncStmt) error {
+func (i *Interpreter) VisitFuncStmt(stmt *FuncStmt) error {
 	fn := &LoxFunction{declaration: stmt, closure: i.environment}
 	i.environment.define(stmt.name.lexeme, fn)
 	return nil
 }
 
-func (i *Interpreter) VisitIfStmt(stmt IfStmt) error {
+func (i *Interpreter) VisitIfStmt(stmt *IfStmt) error {
 	cond, err := i.evaluate(stmt.condition)
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func (i *Interpreter) VisitIfStmt(stmt IfStmt) error {
 	return nil
 }
 
-func (i *Interpreter) VisitPrintStmt(stmt PrintStmt) error {
+func (i *Interpreter) VisitPrintStmt(stmt *PrintStmt) error {
 	value, err := i.evaluate(stmt.expr)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (i *Interpreter) VisitPrintStmt(stmt PrintStmt) error {
 	return nil
 }
 
-func (i *Interpreter) VisitReturnStmt(stmt ReturnStmt) error {
+func (i *Interpreter) VisitReturnStmt(stmt *ReturnStmt) error {
 	var value any
 	if stmt.value != nil {
 		var err error
@@ -104,7 +104,7 @@ func (i *Interpreter) VisitReturnStmt(stmt ReturnStmt) error {
 	return Return{value: value}
 }
 
-func (i *Interpreter) VisitVarStmt(stmt VarStmt) error {
+func (i *Interpreter) VisitVarStmt(stmt *VarStmt) error {
 	var value any
 	if stmt.initializer != nil {
 		var err error
@@ -117,7 +117,7 @@ func (i *Interpreter) VisitVarStmt(stmt VarStmt) error {
 	return nil
 }
 
-func (i *Interpreter) VisitWhileStmt(stmt WhileStmt) error {
+func (i *Interpreter) VisitWhileStmt(stmt *WhileStmt) error {
 	for {
 		cond, err := i.evaluate(stmt.condition)
 		if err != nil {

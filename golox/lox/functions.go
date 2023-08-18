@@ -8,7 +8,7 @@ type LoxCallable interface {
 }
 
 type LoxFunction struct {
-	declaration   FuncStmt
+	declaration   *FuncStmt
 	closure       *Environment
 	isInitializer bool
 }
