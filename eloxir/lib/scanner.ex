@@ -4,7 +4,7 @@ defmodule Scanner do
     spawn_link(fn -> loop(stream, Counter.start(1)) end)
   end
 
-  def next_token(pid), do: sendMsg(pid, :next)
+  def next_token(pid), do: send_msg(pid, :next)
   def stop(pid), do: send(pid, :stop)
 
   defp loop(stream, line) do
@@ -102,6 +102,16 @@ defmodule Scanner do
       char when char in ["\s", "\r", "\t"] ->
         scan(stream, line, lexeme)
 
+      "/" ->
+        case PeekableStream.peek(stream) do
+          "/" ->
+            consume_line(stream)
+            scan(stream, line, lexeme)
+
+          _ ->
+            mkToken.(:slash, char)
+        end
+
       "\n" ->
         Counter.increment(line)
         scan(stream, line, lexeme)
@@ -112,11 +122,22 @@ defmodule Scanner do
   end
 
   # TODO dedupe all of these. Maybe this is what agents and genservers are for.
-  defp sendMsg(pid, kind) do
+  defp send_msg(pid, kind) do
     send(pid, {kind, self()})
 
     receive do
       {^kind, ^pid, char} -> char
+    end
+  end
+
+  defp consume_line(stream) do
+    case PeekableStream.peek(stream) do
+      char when char in [:eof, "\n"] ->
+        nil
+
+      _ ->
+        PeekableStream.next(stream)
+        consume_line(stream)
     end
   end
 end

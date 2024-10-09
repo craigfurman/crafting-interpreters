@@ -49,6 +49,24 @@ defmodule ScannerTest do
     run_test(source_code, expected_tokens)
   end
 
+  test "slashes and comments" do
+    source_code = """
+    !/! // comment
+    !
+    """
+
+    expected_tokens = [
+      %Token{type: :bang, lexeme: "!", line: 1},
+      %Token{type: :slash, lexeme: "/", line: 1},
+      %Token{type: :bang, lexeme: "!", line: 1},
+      %Token{type: :bang, lexeme: "!", line: 2}
+    ]
+
+    run_test(source_code, expected_tokens)
+  end
+
+  # TODO identifiers, strings, numbers
+
   defp run_test(source_code, expected_tokens) do
     {:ok, iodev} = StringIO.open(source_code)
     scanner = Scanner.new(iodev)
@@ -64,6 +82,4 @@ defmodule ScannerTest do
       _ -> collect_tokens(scanner, tokens ++ [token])
     end
   end
-
-  # TODO identifiers, comments, slashes
 end
