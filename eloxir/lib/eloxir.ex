@@ -1,6 +1,4 @@
 defmodule Eloxir do
-  import Scanner
-
   @moduledoc """
   Documentation for `Eloxir`.
   """
@@ -22,8 +20,6 @@ defmodule Eloxir do
 
   defp run_file(path) do
     file = File.open!(path)
-    stream = IO.stream(file, 1)
-    scan(stream)
     File.close(file)
   end
 end

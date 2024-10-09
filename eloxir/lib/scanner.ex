@@ -1,59 +1,122 @@
 defmodule Scanner do
-  # TODO return a lazy stream to avoid buffering all tokens in memory
-  def scan(stream) do
-    line_counter = Counter.start(1)
+  def new(iodev) do
+    stream = PeekableStream.new(IO.stream(iodev, 1))
+    spawn_link(fn -> loop(stream, Counter.start(1)) end)
+  end
+
+  def next_token(pid), do: sendMsg(pid, :next)
+  def stop(pid), do: send(pid, :stop)
+
+  defp loop(stream, line) do
+    receive do
+      {:next, caller} ->
+        send(caller, {:next, self(), scan(stream, line)})
+        loop(stream, line)
+    end
+  end
+
+  defp scan(stream, line, lexeme \\ "") do
+    char = PeekableStream.next(stream)
 
     mkToken = fn type, char ->
-      %Token{type: type, lexeme: char, line: Counter.value(line_counter)}
+      %Token{type: type, lexeme: char, line: Counter.value(line)}
     end
 
-    tokens =
-      for char <- stream do
-        case char do
-          "(" ->
-            mkToken.(:left_paren, char)
+    case char do
+      "(" ->
+        mkToken.(:left_paren, char)
 
-          ")" ->
-            mkToken.(:right_paren, char)
+      ")" ->
+        mkToken.(:right_paren, char)
 
-          "{" ->
-            mkToken.(:left_brace, char)
+      "{" ->
+        mkToken.(:left_brace, char)
 
-          "}" ->
-            mkToken.(:right_brace, char)
+      "}" ->
+        mkToken.(:right_brace, char)
 
-          "[" ->
-            mkToken.(:left_bracket, char)
+      "[" ->
+        mkToken.(:left_bracket, char)
 
-          "]" ->
-            mkToken.(:right_bracket, char)
+      "]" ->
+        mkToken.(:right_bracket, char)
 
-          "," ->
-            mkToken.(:comma, char)
+      "," ->
+        mkToken.(:comma, char)
 
-          "." ->
-            mkToken.(:dot, char)
+      "." ->
+        mkToken.(:dot, char)
 
-          "-" ->
-            mkToken.(:minus, char)
+      "-" ->
+        mkToken.(:minus, char)
 
-          "+" ->
-            mkToken.(:plus, char)
+      "+" ->
+        mkToken.(:plus, char)
 
-          ";" ->
-            mkToken.(:semicolon, char)
+      ";" ->
+        mkToken.(:semicolon, char)
 
-          "*" ->
-            mkToken.(:star, char)
+      "*" ->
+        mkToken.(:star, char)
 
-          "\n" ->
-            Counter.increment(line_counter)
-            nil
+      "!" ->
+        case peek = PeekableStream.peek(stream) do
+          "=" ->
+            PeekableStream.next(stream)
+            mkToken.(:bang_equal, char <> peek)
+
+          _ ->
+            mkToken.(:bang, char)
         end
-      end
-      |> Enum.filter(&(&1 != nil))
 
-    Counter.stop(line_counter)
-    tokens
+      "=" ->
+        case peek = PeekableStream.peek(stream) do
+          "=" ->
+            PeekableStream.next(stream)
+            mkToken.(:equal_equal, char <> peek)
+
+          _ ->
+            mkToken.(:equal, char)
+        end
+
+      "<" ->
+        case peek = PeekableStream.peek(stream) do
+          "=" ->
+            PeekableStream.next(stream)
+            mkToken.(:less_equal, char <> peek)
+
+          _ ->
+            mkToken.(:less, char)
+        end
+
+      ">" ->
+        case peek = PeekableStream.peek(stream) do
+          "=" ->
+            PeekableStream.next(stream)
+            mkToken.(:greater_equal, char <> peek)
+
+          _ ->
+            mkToken.(:greater, char)
+        end
+
+      char when char in ["\s", "\r", "\t"] ->
+        scan(stream, line, lexeme)
+
+      "\n" ->
+        Counter.increment(line)
+        scan(stream, line, lexeme)
+
+      :eof ->
+        :eof
+    end
+  end
+
+  # TODO dedupe all of these. Maybe this is what agents and genservers are for.
+  defp sendMsg(pid, kind) do
+    send(pid, {kind, self()})
+
+    receive do
+      {^kind, ^pid, char} -> char
+    end
   end
 end
