@@ -10,19 +10,12 @@ defmodule Scanner do
 
   def new(iodev) do
     stream = PeekableStream.new(IO.stream(iodev, 1))
-    spawn_link(fn -> loop(stream, 1) end)
+    %{stream: stream, line: 1}
   end
 
-  def next_token(pid), do: send_msg(pid, :next)
-  def stop(pid), do: send(pid, :stop)
-
-  defp loop(stream, line) do
-    receive do
-      {:next, caller} ->
-        {token, stream, line} = scan(stream, line)
-        send(caller, {:next, self(), token})
-        loop(stream, line)
-    end
+  def next_token(state) do
+    {token, stream, line} = scan(state.stream, state.line)
+    {token, %{stream: stream, line: line}}
   end
 
   defp scan(stream, line) do
@@ -248,15 +241,6 @@ defmodule Scanner do
            literal: literal,
            line: line
          }, stream}
-    end
-  end
-
-  # TODO dedupe all of these. Maybe this is what agents and genservers are for.
-  defp send_msg(pid, kind) do
-    send(pid, {kind, self()})
-
-    receive do
-      {^kind, ^pid, char} -> char
     end
   end
 

@@ -117,7 +117,7 @@ defmodule ScannerTest do
   end
 
   defp collect_tokens(scanner, tokens \\ []) do
-    token = Scanner.next_token(scanner)
+    {token, scanner} = Scanner.next_token(scanner)
 
     case token do
       :eof -> tokens
