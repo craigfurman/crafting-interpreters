@@ -10,7 +10,7 @@ defmodule Scanner do
 
   def new(iodev) do
     stream = PeekableStream.new(IO.stream(iodev, 1))
-    spawn_link(fn -> loop(stream, Counter.start(1)) end)
+    spawn_link(fn -> loop(stream, 1) end)
   end
 
   def next_token(pid), do: send_msg(pid, :next)
@@ -19,21 +19,22 @@ defmodule Scanner do
   defp loop(stream, line) do
     receive do
       {:next, caller} ->
-        send(caller, {:next, self(), scan(stream, line)})
+        {token, line} = scan(stream, line)
+        send(caller, {:next, self(), token})
         loop(stream, line)
     end
   end
 
   defp scan(stream, line) do
     case char = PeekableStream.next(stream) do
-      :eof -> :eof
+      :eof -> {:eof, line}
       _ -> scan_char(stream, line, to_codepoint(char))
     end
   end
 
   defp scan_char(stream, line, codepoint) do
     mkToken = fn type, codepoint ->
-      %Token{type: type, lexeme: to_string([codepoint]), line: Counter.value(line)}
+      {%Token{type: type, lexeme: to_string([codepoint]), line: line}, line}
     end
 
     case codepoint do
@@ -127,17 +128,16 @@ defmodule Scanner do
         end
 
       _ when is_alpha(codepoint) ->
-        identifier(stream, [codepoint], line)
+        {identifier(stream, [codepoint], line), line}
 
       ?" ->
-        string(stream, [codepoint], line)
+        {string(stream, [codepoint], line), line}
 
       _ when is_digit(codepoint) ->
-        number(stream, [codepoint], line)
+        {number(stream, [codepoint], line), line}
 
       ?\n ->
-        Counter.increment(line)
-        scan(stream, line)
+        scan(stream, line + 1)
     end
   end
 
@@ -157,14 +157,14 @@ defmodule Scanner do
           %Token{
             type: String.to_atom(lexeme_str),
             lexeme: lexeme_str,
-            line: Counter.value(line)
+            line: line
           }
         else
           %Token{
             type: :identifier,
             lexeme: lexeme_str,
             literal: lexeme_str,
-            line: Counter.value(line)
+            line: line
           }
         end
     end
@@ -182,7 +182,7 @@ defmodule Scanner do
           type: :string,
           literal: to_string(literal),
           lexeme: [lexeme | String.to_charlist(peek)] |> to_string(),
-          line: Counter.value(line)
+          line: line
         }
 
       :eof ->
@@ -231,7 +231,7 @@ defmodule Scanner do
           type: :number,
           lexeme: to_string(lexeme),
           literal: literal,
-          line: Counter.value(line)
+          line: line
         }
     end
   end
