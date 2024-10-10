@@ -19,122 +19,137 @@ defmodule Scanner do
   defp loop(stream, line) do
     receive do
       {:next, caller} ->
-        {token, line} = scan(stream, line)
+        {token, stream, line} = scan(stream, line)
         send(caller, {:next, self(), token})
         loop(stream, line)
     end
   end
 
   defp scan(stream, line) do
-    case char = PeekableStream.next(stream) do
-      :eof -> {:eof, line}
+    {char, stream} = PeekableStream.next(stream)
+
+    case char do
+      :eof -> {:eof, stream, line}
       _ -> scan_char(stream, line, to_codepoint(char))
     end
   end
 
   defp scan_char(stream, line, codepoint) do
     mkToken = fn type, codepoint ->
-      {%Token{type: type, lexeme: to_string([codepoint]), line: line}, line}
+      %Token{type: type, lexeme: to_string([codepoint]), line: line}
     end
 
     case codepoint do
       ?( ->
-        mkToken.(:left_paren, codepoint)
+        {mkToken.(:left_paren, codepoint), stream, line}
 
       ?) ->
-        mkToken.(:right_paren, codepoint)
+        {mkToken.(:right_paren, codepoint), stream, line}
 
       ?{ ->
-        mkToken.(:left_brace, codepoint)
+        {mkToken.(:left_brace, codepoint), stream, line}
 
       ?} ->
-        mkToken.(:right_brace, codepoint)
+        {mkToken.(:right_brace, codepoint), stream, line}
 
       ?[ ->
-        mkToken.(:left_bracket, codepoint)
+        {mkToken.(:left_bracket, codepoint), stream, line}
 
       ?] ->
-        mkToken.(:right_bracket, codepoint)
+        {mkToken.(:right_bracket, codepoint), stream, line}
 
       ?, ->
-        mkToken.(:comma, codepoint)
+        {mkToken.(:comma, codepoint), stream, line}
 
       ?. ->
-        mkToken.(:dot, codepoint)
+        {mkToken.(:dot, codepoint), stream, line}
 
       ?- ->
-        mkToken.(:minus, codepoint)
+        {mkToken.(:minus, codepoint), stream, line}
 
       ?+ ->
-        mkToken.(:plus, codepoint)
+        {mkToken.(:plus, codepoint), stream, line}
 
       ?; ->
-        mkToken.(:semicolon, codepoint)
+        {mkToken.(:semicolon, codepoint), stream, line}
 
       ?* ->
-        mkToken.(:star, codepoint)
+        {mkToken.(:star, codepoint), stream, line}
 
       ?! ->
-        case peek = PeekableStream.peek(stream) do
+        {peek, stream} = PeekableStream.peek(stream)
+
+        case peek do
           "=" ->
-            PeekableStream.next(stream)
-            mkToken.(:bang_equal, [codepoint | String.to_charlist(peek)])
+            {_, stream} = PeekableStream.next(stream)
+            {mkToken.(:bang_equal, [codepoint | String.to_charlist(peek)]), stream, line}
 
           _ ->
-            mkToken.(:bang, codepoint)
+            {mkToken.(:bang, codepoint), stream, line}
         end
 
       ?= ->
-        case peek = PeekableStream.peek(stream) do
+        {peek, stream} = PeekableStream.peek(stream)
+
+        case peek do
           "=" ->
-            PeekableStream.next(stream)
-            mkToken.(:equal_equal, [codepoint | String.to_charlist(peek)])
+            {_, stream} = PeekableStream.next(stream)
+            {mkToken.(:equal_equal, [codepoint | String.to_charlist(peek)]), stream, line}
 
           _ ->
-            mkToken.(:equal, codepoint)
+            {mkToken.(:equal, codepoint), stream, line}
         end
 
       ?< ->
-        case peek = PeekableStream.peek(stream) do
+        {peek, stream} = PeekableStream.peek(stream)
+
+        case peek do
           "=" ->
-            PeekableStream.next(stream)
-            mkToken.(:less_equal, [codepoint | String.to_charlist(peek)])
+            {_, stream} = PeekableStream.next(stream)
+            {mkToken.(:less_equal, [codepoint | String.to_charlist(peek)]), stream, line}
 
           _ ->
-            mkToken.(:less, codepoint)
+            {mkToken.(:less, codepoint), stream, line}
         end
 
       ?> ->
-        case peek = PeekableStream.peek(stream) do
+        {peek, stream} = PeekableStream.peek(stream)
+
+        case peek do
           "=" ->
-            PeekableStream.next(stream)
-            mkToken.(:greater_equal, [codepoint | String.to_charlist(peek)])
+            {_, stream} = PeekableStream.next(stream)
+            {mkToken.(:greater_equal, [codepoint | String.to_charlist(peek)]), stream, line}
 
           _ ->
-            mkToken.(:greater, codepoint)
+            {mkToken.(:greater, codepoint), stream, line}
         end
 
       _ when codepoint in [?\s, ?\r, ?\t] ->
         scan(stream, line)
 
       ?/ ->
-        case PeekableStream.peek(stream) do
+        {peek, stream} = PeekableStream.peek(stream)
+
+        case peek do
           "/" ->
-            consume_line(stream)
+            stream = consume_line(stream)
             scan(stream, line)
 
           _ ->
-            mkToken.(:slash, codepoint)
+            {mkToken.(:slash, codepoint), stream, line}
         end
 
       _ when is_alpha(codepoint) ->
-        {identifier(stream, [codepoint], line), line}
+        {token, stream} = identifier(stream, [codepoint], line)
+        {token, stream, line}
 
       ?" ->
-        {string(stream, [codepoint], line), line}
+        {token, stream} = string(stream, [codepoint], line)
+        {token, stream, line}
 
       _ when is_digit(codepoint) ->
-        {number(stream, [codepoint], line), line}
+        {token, stream} = number(stream, [codepoint], line)
+        {token, stream, line}
 
       ?\n ->
         scan(stream, line + 1)
@@ -142,48 +157,48 @@ defmodule Scanner do
   end
 
   defp identifier(stream, lexeme, line) do
-    peek = PeekableStream.peek(stream)
+    {peek, stream} = PeekableStream.peek(stream)
     codepoint = to_codepoint(peek)
 
     case peek do
       _ when is_alphanumeric(codepoint) ->
-        PeekableStream.next(stream)
+        {_, stream} = PeekableStream.next(stream)
         identifier(stream, [lexeme | String.to_charlist(peek)], line)
 
       _ ->
         lexeme_str = to_string(lexeme)
 
         if MapSet.member?(Token.keywords(), lexeme_str) do
-          %Token{
-            type: String.to_atom(lexeme_str),
-            lexeme: lexeme_str,
-            line: line
-          }
+          {%Token{
+             type: String.to_atom(lexeme_str),
+             lexeme: lexeme_str,
+             line: line
+           }, stream}
         else
-          %Token{
-            type: :identifier,
-            lexeme: lexeme_str,
-            literal: lexeme_str,
-            line: line
-          }
+          {%Token{
+             type: :identifier,
+             lexeme: lexeme_str,
+             literal: lexeme_str,
+             line: line
+           }, stream}
         end
     end
   end
 
   defp string(stream, lexeme, line) do
-    peek = PeekableStream.peek(stream)
+    {peek, stream} = PeekableStream.peek(stream)
 
     case peek do
       "\"" ->
-        PeekableStream.next(stream)
+        {_, stream} = PeekableStream.next(stream)
         [_ | literal] = List.flatten(lexeme)
 
-        %Token{
-          type: :string,
-          literal: to_string(literal),
-          lexeme: [lexeme | String.to_charlist(peek)] |> to_string(),
-          line: line
-        }
+        {%Token{
+           type: :string,
+           literal: to_string(literal),
+           lexeme: [lexeme | String.to_charlist(peek)] |> to_string(),
+           line: line
+         }, stream}
 
       :eof ->
         # TODO probably should bubble up a user error for this rather than raise
@@ -191,29 +206,29 @@ defmodule Scanner do
         raise("unterminated string")
 
       _ ->
-        PeekableStream.next(stream)
+        {_, stream} = PeekableStream.next(stream)
         string(stream, [lexeme | String.to_charlist(peek)], line)
     end
   end
 
   defp number(stream, lexeme, line) do
-    peek = PeekableStream.peek(stream)
+    {peek, stream} = PeekableStream.peek(stream)
     codepoint = to_codepoint(peek)
 
     case peek do
       _ when is_digit(codepoint) ->
-        PeekableStream.next(stream)
+        {_, stream} = PeekableStream.next(stream)
         number(stream, [lexeme | String.to_charlist(peek)], line)
 
       "." ->
-        dot = PeekableStream.next(stream)
+        {dot, stream} = PeekableStream.next(stream)
 
-        peekNext = PeekableStream.peek(stream)
+        {peekNext, stream} = PeekableStream.peek(stream)
         nextCodepoint = to_codepoint(peekNext)
 
         case peekNext do
           _ when is_digit(nextCodepoint) ->
-            PeekableStream.next(stream)
+            {_, stream} = PeekableStream.next(stream)
             lexeme = [lexeme | String.to_charlist(dot)]
             lexeme = [lexeme | String.to_charlist(peekNext)]
             number(stream, lexeme, line)
@@ -227,12 +242,12 @@ defmodule Scanner do
       _ ->
         {literal, ""} = Float.parse(to_string(lexeme))
 
-        %Token{
-          type: :number,
-          lexeme: to_string(lexeme),
-          literal: literal,
-          line: line
-        }
+        {%Token{
+           type: :number,
+           lexeme: to_string(lexeme),
+           literal: literal,
+           line: line
+         }, stream}
     end
   end
 
@@ -246,12 +261,14 @@ defmodule Scanner do
   end
 
   defp consume_line(stream) do
-    case PeekableStream.peek(stream) do
+    {peek, stream} = PeekableStream.peek(stream)
+
+    case peek do
       char when char in [:eof, "\n"] ->
-        nil
+        stream
 
       _ ->
-        PeekableStream.next(stream)
+        {_, stream} = PeekableStream.next(stream)
         consume_line(stream)
     end
   end

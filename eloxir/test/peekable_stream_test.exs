@@ -5,28 +5,30 @@ defmodule PeekableStreamTest do
   test "can call next until underlying character stream is exhausted" do
     {:ok, iodev} = StringIO.open("foo")
     char_stream = IO.stream(iodev, 1)
-    peek_stream_pid = PeekableStream.new(char_stream)
+    state = PeekableStream.new(char_stream)
 
-    char = PeekableStream.next(peek_stream_pid)
+    {char, state} = PeekableStream.next(state)
     assert char == "f"
-    char = PeekableStream.next(peek_stream_pid)
+    {char, state} = PeekableStream.next(state)
     assert char == "o"
-    char = PeekableStream.next(peek_stream_pid)
+    {char, state} = PeekableStream.next(state)
     assert char == "o"
-    char = PeekableStream.next(peek_stream_pid)
+    {char, _} = PeekableStream.next(state)
     assert char == :eof
   end
 
   test "can peek one character ahead without consuming it" do
-    {:ok, iodev} = StringIO.open("foo")
+    {:ok, iodev} = StringIO.open("fob")
     char_stream = IO.stream(iodev, 1)
-    peek_stream_pid = PeekableStream.new(char_stream)
+    state = PeekableStream.new(char_stream)
 
-    char = PeekableStream.peek(peek_stream_pid)
+    {char, state} = PeekableStream.peek(state)
     assert char == "f"
-    char = PeekableStream.next(peek_stream_pid)
+    {char, state} = PeekableStream.next(state)
     assert char == "f"
-    char = PeekableStream.next(peek_stream_pid)
+    {char, state} = PeekableStream.peek(state)
+    assert char == "o"
+    {char, _} = PeekableStream.next(state)
     assert char == "o"
   end
 end
