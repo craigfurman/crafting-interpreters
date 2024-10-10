@@ -13,6 +13,22 @@ defmodule Scanner do
     %{stream: stream, line: 1}
   end
 
+  def stream(iodev) do
+    scanner = new(iodev)
+
+    Stream.unfold(
+      scanner,
+      fn scanner ->
+        {token, scanner} = next_token(scanner)
+
+        case token do
+          :eof -> nil
+          _ -> {token, scanner}
+        end
+      end
+    )
+  end
+
   def next_token(state) do
     {token, stream, line} = scan(state.stream, state.line)
     {token, %{stream: stream, line: line}}

@@ -111,17 +111,7 @@ defmodule ScannerTest do
 
   defp run_test(source_code, expected_tokens) do
     {:ok, iodev} = StringIO.open(source_code)
-    scanner = Scanner.new(iodev)
-    tokens = collect_tokens(scanner)
+    tokens = Enum.to_list(Scanner.stream(iodev))
     assert tokens == expected_tokens
-  end
-
-  defp collect_tokens(scanner, tokens \\ []) do
-    {token, scanner} = Scanner.next_token(scanner)
-
-    case token do
-      :eof -> tokens
-      _ -> collect_tokens(scanner, tokens ++ [token])
-    end
   end
 end
