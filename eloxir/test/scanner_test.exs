@@ -65,7 +65,35 @@ defmodule ScannerTest do
     run_test(source_code, expected_tokens)
   end
 
-  # TODO identifiers, strings, numbers
+  test "identifiers and strings" do
+    source_code = """
+    var foo_09 = "bar";
+    """
+
+    expected_tokens = [
+      %Token{type: :var, lexeme: "var", line: 1},
+      %Token{type: :identifier, lexeme: "foo_09", literal: "foo_09", line: 1},
+      %Token{type: :equal, lexeme: "=", line: 1},
+      %Token{type: :string, lexeme: "\"bar\"", literal: "bar", line: 1},
+      %Token{type: :semicolon, lexeme: ";", line: 1}
+    ]
+
+    run_test(source_code, expected_tokens)
+  end
+
+  test "numbers" do
+    source_code = """
+    123
+    456.789
+    """
+
+    expected_tokens = [
+      %Token{type: :number, lexeme: "123", literal: 123.0, line: 1},
+      %Token{type: :number, lexeme: "456.789", literal: 456.789, line: 2}
+    ]
+
+    run_test(source_code, expected_tokens)
+  end
 
   defp run_test(source_code, expected_tokens) do
     {:ok, iodev} = StringIO.open(source_code)
