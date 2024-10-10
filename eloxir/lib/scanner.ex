@@ -25,88 +25,92 @@ defmodule Scanner do
   end
 
   defp scan(stream, line) do
-    char = PeekableStream.next(stream)
-    codepoint = to_codepoint(char)
+    case char = PeekableStream.next(stream) do
+      :eof -> :eof
+      _ -> scan_char(stream, line, to_codepoint(char))
+    end
+  end
 
-    mkToken = fn type, char ->
-      %Token{type: type, lexeme: char, line: Counter.value(line)}
+  defp scan_char(stream, line, codepoint) do
+    mkToken = fn type, codepoint ->
+      %Token{type: type, lexeme: to_string([codepoint]), line: Counter.value(line)}
     end
 
     case codepoint do
       ?( ->
-        mkToken.(:left_paren, char)
+        mkToken.(:left_paren, codepoint)
 
       ?) ->
-        mkToken.(:right_paren, char)
+        mkToken.(:right_paren, codepoint)
 
       ?{ ->
-        mkToken.(:left_brace, char)
+        mkToken.(:left_brace, codepoint)
 
       ?} ->
-        mkToken.(:right_brace, char)
+        mkToken.(:right_brace, codepoint)
 
       ?[ ->
-        mkToken.(:left_bracket, char)
+        mkToken.(:left_bracket, codepoint)
 
       ?] ->
-        mkToken.(:right_bracket, char)
+        mkToken.(:right_bracket, codepoint)
 
       ?, ->
-        mkToken.(:comma, char)
+        mkToken.(:comma, codepoint)
 
       ?. ->
-        mkToken.(:dot, char)
+        mkToken.(:dot, codepoint)
 
       ?- ->
-        mkToken.(:minus, char)
+        mkToken.(:minus, codepoint)
 
       ?+ ->
-        mkToken.(:plus, char)
+        mkToken.(:plus, codepoint)
 
       ?; ->
-        mkToken.(:semicolon, char)
+        mkToken.(:semicolon, codepoint)
 
       ?* ->
-        mkToken.(:star, char)
+        mkToken.(:star, codepoint)
 
       ?! ->
         case peek = PeekableStream.peek(stream) do
           "=" ->
             PeekableStream.next(stream)
-            mkToken.(:bang_equal, char <> peek)
+            mkToken.(:bang_equal, [codepoint | String.to_charlist(peek)])
 
           _ ->
-            mkToken.(:bang, char)
+            mkToken.(:bang, codepoint)
         end
 
       ?= ->
         case peek = PeekableStream.peek(stream) do
           "=" ->
             PeekableStream.next(stream)
-            mkToken.(:equal_equal, char <> peek)
+            mkToken.(:equal_equal, [codepoint | String.to_charlist(peek)])
 
           _ ->
-            mkToken.(:equal, char)
+            mkToken.(:equal, codepoint)
         end
 
       ?< ->
         case peek = PeekableStream.peek(stream) do
           "=" ->
             PeekableStream.next(stream)
-            mkToken.(:less_equal, char <> peek)
+            mkToken.(:less_equal, [codepoint | String.to_charlist(peek)])
 
           _ ->
-            mkToken.(:less, char)
+            mkToken.(:less, codepoint)
         end
 
       ?> ->
         case peek = PeekableStream.peek(stream) do
           "=" ->
             PeekableStream.next(stream)
-            mkToken.(:greater_equal, char <> peek)
+            mkToken.(:greater_equal, [codepoint | String.to_charlist(peek)])
 
           _ ->
-            mkToken.(:greater, char)
+            mkToken.(:greater, codepoint)
         end
 
       _ when codepoint in [?\s, ?\r, ?\t] ->
@@ -119,27 +123,21 @@ defmodule Scanner do
             scan(stream, line)
 
           _ ->
-            mkToken.(:slash, char)
+            mkToken.(:slash, codepoint)
         end
 
       _ when is_alpha(codepoint) ->
-        identifier(stream, char, line)
+        identifier(stream, [codepoint], line)
 
       ?" ->
-        string(stream, char, line)
+        string(stream, [codepoint], line)
 
       _ when is_digit(codepoint) ->
-        number(stream, char, line)
+        number(stream, [codepoint], line)
 
       ?\n ->
         Counter.increment(line)
         scan(stream, line)
-
-      # TODO the mess I've made here is super confusing, using :eof to represent
-      # a char, then converting back and forth. Maybe the PeekableStream here
-      # should yield codepoint integers instead.
-      0 ->
-        :eof
     end
   end
 
@@ -150,13 +148,24 @@ defmodule Scanner do
     case peek do
       _ when is_alphanumeric(codepoint) ->
         PeekableStream.next(stream)
-        identifier(stream, lexeme <> peek, line)
+        identifier(stream, [lexeme | String.to_charlist(peek)], line)
 
       _ ->
-        if MapSet.member?(Token.keywords(), lexeme) do
-          %Token{type: String.to_atom(lexeme), lexeme: lexeme, line: Counter.value(line)}
+        lexeme_str = to_string(lexeme)
+
+        if MapSet.member?(Token.keywords(), lexeme_str) do
+          %Token{
+            type: String.to_atom(lexeme_str),
+            lexeme: lexeme_str,
+            line: Counter.value(line)
+          }
         else
-          %Token{type: :identifier, lexeme: lexeme, literal: lexeme, line: Counter.value(line)}
+          %Token{
+            type: :identifier,
+            lexeme: lexeme_str,
+            literal: lexeme_str,
+            line: Counter.value(line)
+          }
         end
     end
   end
@@ -167,12 +176,12 @@ defmodule Scanner do
     case peek do
       "\"" ->
         PeekableStream.next(stream)
-        [_ | literal] = String.to_charlist(lexeme)
+        [_ | literal] = List.flatten(lexeme)
 
         %Token{
           type: :string,
           literal: to_string(literal),
-          lexeme: lexeme <> peek,
+          lexeme: [lexeme | String.to_charlist(peek)] |> to_string(),
           line: Counter.value(line)
         }
 
@@ -183,7 +192,7 @@ defmodule Scanner do
 
       _ ->
         PeekableStream.next(stream)
-        string(stream, lexeme <> peek, line)
+        string(stream, [lexeme | String.to_charlist(peek)], line)
     end
   end
 
@@ -194,7 +203,7 @@ defmodule Scanner do
     case peek do
       _ when is_digit(codepoint) ->
         PeekableStream.next(stream)
-        number(stream, lexeme <> peek, line)
+        number(stream, [lexeme | String.to_charlist(peek)], line)
 
       "." ->
         dot = PeekableStream.next(stream)
@@ -205,7 +214,9 @@ defmodule Scanner do
         case peekNext do
           _ when is_digit(nextCodepoint) ->
             PeekableStream.next(stream)
-            number(stream, lexeme <> dot <> peekNext, line)
+            lexeme = [lexeme | String.to_charlist(dot)]
+            lexeme = [lexeme | String.to_charlist(peekNext)]
+            number(stream, lexeme, line)
 
           _ ->
             # TODO probably should bubble up a user error for this rather than raise
@@ -214,11 +225,11 @@ defmodule Scanner do
         end
 
       _ ->
-        {literal, ""} = Float.parse(lexeme)
+        {literal, ""} = Float.parse(to_string(lexeme))
 
         %Token{
           type: :number,
-          lexeme: lexeme,
+          lexeme: to_string(lexeme),
           literal: literal,
           line: Counter.value(line)
         }
@@ -246,13 +257,7 @@ defmodule Scanner do
   end
 
   defp to_codepoint(char) do
-    case char do
-      :eof ->
-        0
-
-      _ ->
-        [point] = String.to_charlist(char)
-        point
-    end
+    [point] = String.to_charlist(char)
+    point
   end
 end

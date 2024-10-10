@@ -81,6 +81,20 @@ defmodule ScannerTest do
     run_test(source_code, expected_tokens)
   end
 
+  test "short strings" do
+    source_code = """
+    ""
+    "a"
+    """
+
+    expected_tokens = [
+      %Token{type: :string, lexeme: "\"\"", literal: "", line: 1},
+      %Token{type: :string, lexeme: "\"a\"", literal: "a", line: 2}
+    ]
+
+    run_test(source_code, expected_tokens)
+  end
+
   test "numbers" do
     source_code = """
     123
